@@ -72,3 +72,70 @@ We use [4DHuman](https://github.com/shubham-goel/4D-Humans/tree/main) in the `pr
 
 ## 📜 License
 This project is licensed under the MIT License.
+
+
+# Further info
+from: https://www.kaggle.com/competitions/fifa-skeletal-light/data
+
+
+Dataset Description
+We provide camera and bounding box data for both validation (val) and test sets.
+
+Due to .npz format limitations with nested dictionaries, camera data is stored separately per sequence, while bounding boxes are merged into a single file.
+
+Video Access
+The video footage is owned by FIFA and requires an additional agreement for access. To request permission, please complete this form. After reviewing your application, we will send you a separate license agreement along with further access details.
+
+If you have already requested video footage from the WorldPose Dataset, you do not need to apply again, as the validation and test videos were included in that distribution.
+
+Camera
+Each camera file is stored separately per sequence in .npz format with the following structure.
+
+{
+    # Intrinsic Matrix per frame
+    "K": np.array of shape (number_frames, 3, 3),  
+    # Distortion coefficients per frame (k1, k2, p1, p2, k3) here only k1, k2 are valid),
+    "k": np.array of shape (number_frames, 5),  
+    # Rotation matrix for the first frame,
+    "R": np.array of shape (1, 3, 3),  
+    # Translation vector for the first frame,
+    "t": np.array of shape (1, 3), 
+}
+To simulate a realistic setting, we provide intrinsic parameters and distortion coefficients, as modern cameras (e.g., your iPhones) often support exporting them directly. However, we only provide rotation and translation parameters for the first frame to help define the coordinate system. Participants will need to track subsequent camera poses.
+
+Boxes
+Bounding boxes are stored in a single `.npz file structured as:
+
+{
+    "<sequence_name>": np.array of shape (number_frames, Num_subjects, 4)
+    # Each entry represents a bounding box per frame and subject,
+    # stored in XYXY format: (x_min, y_min, x_max, y_max),
+    # where (x_min, y_min) is the top-left corner
+    # and (x_max, y_max) is the bottom-right corner.
+    # If a subject is not present in a given frame, its bounding box is set to np.nan.
+} 
+Submission
+For submission, keypoints should be provided in a merged file, similar to bounding boxes. Since Kaggle does not support direct submission of .npz files, we provide a conversion script to help you to convert them to the .parquet format.
+
+{
+    "<sequence_name>": np.array of shape (number_frames, Num_subjects, 15, 3), 
+    # Each entry represents 3D keypoints per frame and subject,
+    # stored in a (15, 3) matrix with (x, y, z) coordinates
+    # for 15 selected keypoints.
+
+    # For keypoints, we select 15 joints from **SMPL's** joint set:
+    # [24, 17, 16, 19, 18, 21, 20, 2, 1, 5, 4, 8, 7, 11, 10]
+    # These joints, in order, correspond to:
+    # - "nose"
+    # - "right_shoulder", "left_shoulder"
+    # - "right_elbow", "left_elbow"
+    # - "right_wrist", "left_wrist"
+    # - "right_hip", "left_hip"
+    # - "right_knee", "left_knee"
+    # - "right_ankle", "left_ankle"
+    # - "right_foot", "left_foot"
+
+    # Please ensure you use the **SMPL** model for conversion,
+    # as SMPL-H and SMPL-X have different joint orders.
+}
+Please ensure that your submission follows the specified format for compatibility with the evaluation system. We also provide sample submission files for your reference.

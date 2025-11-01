@@ -1,0 +1,12 @@
+#add files
+*.csv
+*.json
+*.txt
+*.npz
+*.mp4
+
+*.7z
+*.zip
+*.pdf
+
+.DS_Store
