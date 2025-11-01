@@ -17,31 +17,214 @@ Make sure you have the required dependencies installed:
 pip install numpy torch opencv-python tqdm scipy
 ```
 
+## 📂 Dataset Overview
+
+### Understanding the Dataset Structure
+
+The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** with different data availability:
+
+| Subset | Videos | Cameras | Bounding Boxes | 2D Poses | 3D Poses | Purpose |
+|--------|--------|---------|----------------|----------|----------|---------|
+| **TRAIN_DATA** | 89 | ✓ | ✗ | ✗ | ✗ | Training - requires preprocessing |
+| **TEST_DATA** | 8 | ✗ | ✓ (7/8) | ✓ (7/8) | ✓ (7/8) | Validation with ground truth |
+| **CHALLENGE_DATA** | 7 | ✗ | ✓ (6/7) | ✓ (6/7) | ✓ (6/7) | Final evaluation |
+| **TOTAL** | **104** | **89** | **13** | **13** | **13** | |
+
+### Data Availability Details
+
+#### 1. **TRAIN_DATA (89 sequences)**
+**What you have:**
+- ✓ Videos (`.mp4` files)
+- ✓ Camera parameters (intrinsics `K`, distortion `k`, first frame `R` and `t`)
+- ✓ Raw images (after running `extract_frames.py`)
+
+**What you DON'T have (need to generate):**
+- ✗ Bounding boxes
+- ✗ 2D skeletal poses
+- ✗ 3D skeletal poses
+
+**How to use:**
+- Train your models on these sequences
+- Generate poses using `preprocess.py` (requires 4D-Humans)
+- Estimate camera poses for frames 2+ (only frame 1 R,t provided)
+
+**Example sequences:** `ARG_CRO_220001`, `ARG_FRA_182345`, `BRA_CRO_210113`, etc.
+
+#### 2. **TEST_DATA (8 sequences, 7 with annotations)**
+**What you have:**
+- ✓ Videos (`.mp4` files)
+- ✓ Bounding boxes (7 sequences)
+- ✓ 2D skeletal poses (7 sequences, pre-generated)
+- ✓ 3D skeletal poses (7 sequences, pre-generated)
+
+**What you DON'T have:**
+- ✗ Camera parameters (except first frame - you must track camera pose)
+
+**Available sequences:**
+- ✓ `ARG_CRO_000737` - 1042 frames, 21 subjects
+- ✓ `ARG_FRA_183303` - 1944 frames, 22 subjects
+- ✓ `BRA_KOR_230503` - 1812 frames, 22 subjects
+- ✓ `CRO_MOR_190500` - 2022 frames, 23 subjects
+- ✓ `ENG_FRA_223104` - 1878 frames, 23 subjects
+- ✓ `FRA_MOR_220726` - 2149 frames, 23 subjects
+- ✓ `MOR_POR_180940` - 1800 frames, 23 subjects
+- ✗ `NET_ARG_003203` - No annotations
+
+**How to use:**
+- Validate your approach on these sequences
+- Compare your predictions against ground truth
+- Develop camera tracking algorithms
+
+#### 3. **CHALLENGE_DATA (7 sequences, 6 with annotations)**
+**What you have:**
+- ✓ Videos (`.mp4` files)
+- ✓ Bounding boxes (6 sequences)
+- ✓ 2D skeletal poses (6 sequences, pre-generated)
+- ✓ 3D skeletal poses (6 sequences, pre-generated)
+
+**What you DON'T have:**
+- ✗ Camera parameters (must be estimated)
+
+**Available sequences:**
+- ✓ `ARG_CRO_225412` - 569 frames, 21 subjects
+- ✓ `ARG_FRA_184210` - 987 frames, 23 subjects
+- ✗ `CRO_MOR_182145` - No annotations
+- ✓ `ENG_FRA_231427` - 1060 frames, 22 subjects
+- ✓ `MOR_POR_184642` - 968 frames, 23 subjects
+- ✓ `MOR_POR_193202` - 685 frames, 19 subjects
+- ✓ `NET_ARG_004041` - 904 frames, 23 subjects
+
+**How to use:**
+- Final evaluation sequences
+- Submit predictions for these sequences
+
+### Data Files Explained
+
+#### Camera Parameters (`data/cameras/<sequence>.npz`)
+Each file contains per-frame camera intrinsics and first-frame extrinsics:
+
+```python
+{
+    "K": (num_frames, 3, 3),    # Intrinsic matrix per frame
+    "k": (num_frames, 5),        # Distortion coefficients (only k1, k2 valid)
+    "R": (1, 3, 3),              # Rotation matrix for FIRST FRAME ONLY
+    "t": (1, 3),                 # Translation vector for FIRST FRAME ONLY
+    "Rt": (1, 3, 4)              # Combined [R|t] for first frame
+}
+```
+
+**Important:** You must estimate camera poses (R, t) for frames 2 onwards.
+
+#### Bounding Boxes (`data/boxes.npz`)
+Contains bounding boxes for 13 sequences (test + challenge data):
+
+```python
+{
+    "<sequence_name>": (num_frames, num_subjects, 4)
+    # Format: XYXY (x_min, y_min, x_max, y_max)
+    # np.nan indicates subject not present in frame
+}
+```
+
+#### 2D Poses (`data/skel_2d.npz`)
+Contains 2D skeletal keypoints (25 joints from 4D-Humans = SMPL 24 + nose):
+
+```python
+{
+    "<sequence_name>": (num_frames, num_subjects, 25, 2)
+    # 25 joints with (x, y) pixel coordinates
+}
+```
+
+#### 3D Poses (`data/skel_3d.npz`)
+Contains 3D skeletal keypoints (25 joints from 4D-Humans):
+
+```python
+{
+    "<sequence_name>": (num_frames, num_subjects, 25, 3)
+    # 25 joints with (x, y, z) world coordinates in meters
+}
+```
+
+**Joint structure:** See [SMPL joint mapping](#smpl-joint-mapping) below.
+
+### What Can You Do With Each Subset?
+
+#### Training Workflow (TRAIN_DATA):
+1. Extract frames: `python scripts/preprocessing/extract_frames.py`
+2. Generate poses: `python preprocess.py` (requires 4D-Humans setup)
+3. Train your camera tracking models
+4. Train your pose estimation models
+
+#### Validation Workflow (TEST_DATA):
+1. Visualize bounding boxes: `python scripts/visualization/visualize_bboxes.py --sequence ARG_FRA_183303`
+2. Visualize 3D poses: `python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303`
+3. Run baseline: `python baseline.py`
+4. Validate your approach against provided ground truth
+
+#### Submission Workflow (CHALLENGE_DATA):
+1. Run your model on challenge sequences
+2. Generate predictions in submission format (15 joints)
+3. Prepare submission: `python prepare-submission.py -i your-solution.npz`
+4. Submit to Kaggle
+
+### SMPL Joint Mapping
+
+**4D-Humans Output (25 joints):** Used in `skel_2d.npz` and `skel_3d.npz`
+- Joints 0-23: Standard SMPL joints
+- Joint 24: Extra nose joint (added by 4D-Humans)
+
+**Submission Format (15 joints):** Select from SMPL indices `[24, 17, 16, 19, 18, 21, 20, 2, 1, 5, 4, 8, 7, 11, 10]`
+- Nose, shoulders, elbows, wrists, hips, knees, ankles, feet
+
+See `scripts/README.md` for complete joint structure reference.
+
 ## 📂 Data Preparation
-The script expects the following dataset structure:
+
+### Expected Directory Structure
 
 ```
 data/
-│── cameras/
-│   ├── sequence1.npz
-│   ├── sequence2.npz
-│── images/
-│   ├── sequence1/
+├── videos/
+│   ├── train_data/          # 89 training videos
+│   ├── test_data/           # 8 validation videos
+│   └── challenge_data/      # 7 challenge videos
+├── cameras/                 # 89 camera parameter files (train only)
+│   ├── ARG_CRO_220001.npz
+│   ├── ARG_FRA_182345.npz
+│   └── ...
+├── images/                  # Extracted frames (generate with extract_frames.py)
+│   ├── <sequence_name>/
+│   │   ├── 00000.jpg
 │   │   ├── 00001.jpg
-│   │   ├── 00002.jpg
-│── skel_2d.npz
-│── skel_3d.npz
-│── boxes.npz
-│── pitch_points.txt
+│   │   └── ...
+├── boxes.npz               # Bounding boxes (13 test+challenge sequences)
+├── skel_2d.npz             # 2D poses (13 sequences, 25 joints)
+├── skel_3d.npz             # 3D poses (13 sequences, 25 joints)
+└── pitch_points.txt        # Field marking points for refinement
 ```
 
-- **`images/`**: Stores frame images for each sequence. **Please Ensure that the filenames are sequentially numbered** (e.g., `"00000.jpg"`, `"00001.jpg"`, etc.).
-- **`cameras/`**: Contains `.npz` files with camera parameters for each sequence.
-- **`boxes.npz`**: Stores bounding box data for each sequence.
-- **`skel_2d.npz`**: Contains estimated 2D skeletal keypoints. 
-- **`skel_3d.npz`**: Contains estimated 3D skeletal keypoints. 
+### Data Sources
 
-You can find details about the `cameras`, `bounding boxes`, and `images` on the **Kaggle** page. For `skel_2d.npz` and `skel_3d.npz`, you can generate them automatically using the provided `preprocess.py` script. Alternatively, we have also uploaded preprocessed data [here](https://drive.google.com/drive/folders/12bu0Xmp3-euajRxIxYO92HswWWUtH-u1?usp=sharing).
+- **Videos, Cameras, Bounding Boxes:** Download from [Kaggle Competition](https://www.kaggle.com/competitions/fifa-skeletal-light)
+- **Preprocessed 2D/3D Poses:** Download from [Google Drive](https://drive.google.com/drive/folders/12bu0Xmp3-euajRxIxYO92HswWWUtH-u1?usp=sharing) OR generate using `python preprocess.py`
+- **Images:** Generate locally using `python scripts/preprocessing/extract_frames.py`
+
+### Quick Start Data Preparation
+
+```bash
+# 1. Extract frames from videos (creates images/ directory)
+python scripts/preprocessing/extract_frames.py
+
+# 2. Validate data consistency (optional)
+python scripts/preprocessing/validate_data.py
+
+# 3. Visualize bounding boxes (test subset only)
+python scripts/visualization/visualize_bboxes.py --sequence ARG_FRA_183303
+
+# 4. Visualize 3D poses (test subset only)
+python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100
+```
 
 ### 📺 Sample Visualization
 To help you visualize the results, we provide a short sample sequence in `media/sample.mp4`. 
