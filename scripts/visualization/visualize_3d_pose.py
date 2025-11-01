@@ -123,36 +123,48 @@ def select_random_sequence_and_frame(
 
 def get_skeleton_connections():
     """
-    Define skeleton connections for visualization.
+    Define skeleton connections for SMPL 25-joint visualization.
     Returns list of tuples (joint1_idx, joint2_idx) representing bones.
 
-    Joint order (15 joints from SMPL):
-    0: nose
-    1-2: right_shoulder, left_shoulder
-    3-4: right_elbow, left_elbow
-    5-6: right_wrist, left_wrist
-    7-8: right_hip, left_hip
-    9-10: right_knee, left_knee
-    11-12: right_ankle, left_ankle
-    13-14: right_foot, left_foot
+    SMPL 25 joint order (standard SMPL-X body model):
+    0: pelvis, 1: left_hip, 2: right_hip, 3: spine1, 4: left_knee, 5: right_knee,
+    6: spine2, 7: left_ankle, 8: right_ankle, 9: spine3, 10: left_foot, 11: right_foot,
+    12: neck, 13: left_collar, 14: right_collar, 15: head, 16: left_shoulder, 17: right_shoulder,
+    18: left_elbow, 19: right_elbow, 20: left_wrist, 21: right_wrist, 22: left_hand, 23: right_hand
     """
     connections = [
-        # Spine
-        (0, 1), (0, 2),  # Nose to shoulders
-        (1, 7), (2, 8),  # Shoulders to hips
-        (7, 8),          # Hip connection
-
-        # Right arm
-        (1, 3), (3, 5),  # Shoulder -> elbow -> wrist
-
-        # Left arm
-        (2, 4), (4, 6),  # Shoulder -> elbow -> wrist
-
-        # Right leg
-        (7, 9), (9, 11), (11, 13),  # Hip -> knee -> ankle -> foot
+        # Spine chain (central axis)
+        (0, 3),   # pelvis -> spine1
+        (3, 6),   # spine1 -> spine2
+        (6, 9),   # spine2 -> spine3
+        (9, 12),  # spine3 -> neck
+        (12, 15), # neck -> head
 
         # Left leg
-        (8, 10), (10, 12), (12, 14),  # Hip -> knee -> ankle -> foot
+        (0, 1),   # pelvis -> left_hip
+        (1, 4),   # left_hip -> left_knee
+        (4, 7),   # left_knee -> left_ankle
+        (7, 10),  # left_ankle -> left_foot
+
+        # Right leg
+        (0, 2),   # pelvis -> right_hip
+        (2, 5),   # right_hip -> right_knee
+        (5, 8),   # right_knee -> right_ankle
+        (8, 11),  # right_ankle -> right_foot
+
+        # Left arm
+        (9, 13),  # spine3 -> left_collar
+        (13, 16), # left_collar -> left_shoulder
+        (16, 18), # left_shoulder -> left_elbow
+        (18, 20), # left_elbow -> left_wrist
+        (20, 22), # left_wrist -> left_hand
+
+        # Right arm
+        (9, 14),  # spine3 -> right_collar
+        (14, 17), # right_collar -> right_shoulder
+        (17, 19), # right_shoulder -> right_elbow
+        (19, 21), # right_elbow -> right_wrist
+        (21, 23), # right_wrist -> right_hand
     ]
 
     return connections
@@ -162,16 +174,18 @@ def visualize_3d_pose_matplotlib(
     poses_3d: np.ndarray,
     sequence: str,
     frame_idx: int,
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    max_subjects: int = 12
 ):
     """
-    Visualize 3D poses using matplotlib.
+    Visualize 3D poses using matplotlib with separate subplot for each subject.
 
     Args:
-        poses_3d: 3D poses array of shape (num_subjects, 15, 3)
+        poses_3d: 3D poses array of shape (num_subjects, 25, 3)
         sequence: Sequence name
         frame_idx: Frame index
         output_path: Optional output file path
+        max_subjects: Maximum number of subjects to display (default: 12)
     """
     # Set backend based on whether we're saving or displaying
     if output_path:
@@ -185,72 +199,133 @@ def visualize_3d_pose_matplotlib(
             print("Warning: Interactive backend not available. Saving to 'pose_3d_temp.png' instead.")
             output_path = 'pose_3d_temp.png'
 
-    fig = plt.figure(figsize=(12, 10))
-    ax = fig.add_subplot(111, projection='3d')
-
     connections = get_skeleton_connections()
 
-    # Define colors for different subjects
-    colors = plt.cm.tab10(np.linspace(0, 1, 10))
-
-    num_subjects = 0
-
-    # Plot each subject's skeleton
+    # Filter out NaN poses and get valid subjects
+    valid_subjects = []
+    valid_poses = []
     for subject_idx, pose in enumerate(poses_3d):
-        # Skip if pose contains NaN (subject not present)
-        if np.any(np.isnan(pose)):
-            continue
+        if not np.any(np.isnan(pose)):
+            valid_subjects.append(subject_idx)
+            valid_poses.append(pose)
+            if len(valid_subjects) >= max_subjects:
+                break
 
-        num_subjects += 1
-        color = colors[subject_idx % len(colors)]
+    num_subjects = len(valid_subjects)
+
+    if num_subjects == 0:
+        print("❌ No valid subjects found in this frame!")
+        return
+
+    print(f"Visualizing {num_subjects} subjects (IDs: {valid_subjects})")
+
+    # Calculate grid layout for subplots
+    if num_subjects == 1:
+        rows, cols = 1, 1
+    elif num_subjects == 2:
+        rows, cols = 1, 2
+    elif num_subjects <= 4:
+        rows, cols = 2, 2
+    elif num_subjects <= 6:
+        rows, cols = 2, 3
+    elif num_subjects <= 9:
+        rows, cols = 3, 3
+    elif num_subjects <= 12:
+        rows, cols = 3, 4
+    else:
+        rows, cols = 4, 4
+
+    # Create figure with subplots
+    fig = plt.figure(figsize=(5 * cols, 4.5 * rows))
+    fig.suptitle(f'3D Poses - {sequence} - Frame {frame_idx} ({num_subjects} subjects)',
+                 fontsize=16, fontweight='bold', y=0.995)
+
+    # Define colors for skeleton parts
+    color_spine = '#2E86AB'     # Blue
+    color_left_arm = '#A23B72'  # Purple
+    color_right_arm = '#F18F01' # Orange
+    color_left_leg = '#C73E1D'  # Red
+    color_right_leg = '#6A994E' # Green
+
+    # Plot each subject in a separate subplot
+    for plot_idx, (subject_idx, pose) in enumerate(zip(valid_subjects, valid_poses)):
+        ax = fig.add_subplot(rows, cols, plot_idx + 1, projection='3d')
 
         # Extract x, y, z coordinates
         xs = pose[:, 0]
         ys = pose[:, 1]
         zs = pose[:, 2]
 
-        # Plot joints
-        ax.scatter(xs, ys, zs, c=[color], marker='o', s=50, label=f'Subject {subject_idx}')
+        # Plot joints (smaller markers)
+        ax.scatter(xs, ys, zs, c='black', marker='o', s=20, alpha=0.6)
 
-        # Plot skeleton connections
+        # Plot skeleton connections with different colors for body parts
         for joint1, joint2 in connections:
             if joint1 < len(pose) and joint2 < len(pose):
+                # Determine color based on body part
+                if joint1 == 0 or joint2 == 0 or (joint1 in [3, 6, 9, 12, 15] and joint2 in [3, 6, 9, 12, 15]):
+                    color = color_spine
+                    linewidth = 3
+                elif joint1 in [1, 4, 7, 10] or joint2 in [1, 4, 7, 10]:
+                    color = color_left_leg
+                    linewidth = 2.5
+                elif joint1 in [2, 5, 8, 11] or joint2 in [2, 5, 8, 11]:
+                    color = color_right_leg
+                    linewidth = 2.5
+                elif joint1 in [13, 16, 18, 20, 22] or joint2 in [13, 16, 18, 20, 22]:
+                    color = color_left_arm
+                    linewidth = 2.5
+                elif joint1 in [14, 17, 19, 21, 23] or joint2 in [14, 17, 19, 21, 23]:
+                    color = color_right_arm
+                    linewidth = 2.5
+                else:
+                    color = 'gray'
+                    linewidth = 2
+
                 ax.plot(
                     [xs[joint1], xs[joint2]],
                     [ys[joint1], ys[joint2]],
                     [zs[joint1], zs[joint2]],
                     c=color,
-                    linewidth=2
+                    linewidth=linewidth,
+                    alpha=0.8
                 )
 
-    # Set labels and title
-    ax.set_xlabel('X (m)', fontsize=12)
-    ax.set_ylabel('Y (m)', fontsize=12)
-    ax.set_zlabel('Z (m)', fontsize=12)
-    ax.set_title(f'3D Poses - {sequence} - Frame {frame_idx}\nSubjects: {num_subjects}',
-                 fontsize=14, fontweight='bold')
+        # Set labels
+        ax.set_xlabel('X (m)', fontsize=9)
+        ax.set_ylabel('Y (m)', fontsize=9)
+        ax.set_zlabel('Z (m)', fontsize=9)
+        ax.set_title(f'Subject {subject_idx}', fontsize=11, fontweight='bold')
 
-    # Set equal aspect ratio
-    max_range = np.array([
-        poses_3d[~np.isnan(poses_3d[:, :, 0])].max() - poses_3d[~np.isnan(poses_3d[:, :, 0])].min(),
-        poses_3d[~np.isnan(poses_3d[:, :, 1])].max() - poses_3d[~np.isnan(poses_3d[:, :, 1])].min(),
-        poses_3d[~np.isnan(poses_3d[:, :, 2])].max() - poses_3d[~np.isnan(poses_3d[:, :, 2])].min()
-    ]).max() / 2.0
+        # Set equal aspect ratio for this subject
+        pose_range = np.ptp(pose, axis=0).max() / 2.0
+        pose_center = pose.mean(axis=0)
 
-    mid_x = (poses_3d[~np.isnan(poses_3d[:, :, 0])].max() + poses_3d[~np.isnan(poses_3d[:, :, 0])].min()) * 0.5
-    mid_y = (poses_3d[~np.isnan(poses_3d[:, :, 1])].max() + poses_3d[~np.isnan(poses_3d[:, :, 1])].min()) * 0.5
-    mid_z = (poses_3d[~np.isnan(poses_3d[:, :, 2])].max() + poses_3d[~np.isnan(poses_3d[:, :, 2])].min()) * 0.5
+        ax.set_xlim(pose_center[0] - pose_range, pose_center[0] + pose_range)
+        ax.set_ylim(pose_center[1] - pose_range, pose_center[1] + pose_range)
+        ax.set_zlim(pose_center[2] - pose_range, pose_center[2] + pose_range)
 
-    ax.set_xlim(mid_x - max_range, mid_x + max_range)
-    ax.set_ylim(mid_y - max_range, mid_y + max_range)
-    ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        # Add grid and set viewing angle
+        ax.grid(True, alpha=0.3)
+        ax.view_init(elev=10, azim=45)
 
-    # Add grid
-    ax.grid(True, alpha=0.3)
+        # Smaller tick labels
+        ax.tick_params(labelsize=8)
 
-    # Add legend if multiple subjects
-    if num_subjects > 1:
-        ax.legend(loc='upper right')
+    # Add legend in the last subplot or in empty space
+    if num_subjects < rows * cols:
+        # Use empty subplot for legend
+        legend_ax = fig.add_subplot(rows, cols, num_subjects + 1)
+        legend_ax.axis('off')
+
+        legend_elements = [
+            plt.Line2D([0], [0], color=color_spine, linewidth=3, label='Spine/Head'),
+            plt.Line2D([0], [0], color=color_left_arm, linewidth=2.5, label='Left Arm'),
+            plt.Line2D([0], [0], color=color_right_arm, linewidth=2.5, label='Right Arm'),
+            plt.Line2D([0], [0], color=color_left_leg, linewidth=2.5, label='Left Leg'),
+            plt.Line2D([0], [0], color=color_right_leg, linewidth=2.5, label='Right Leg'),
+        ]
+        legend_ax.legend(handles=legend_elements, loc='center', fontsize=10, frameon=True)
 
     plt.tight_layout()
 
@@ -339,6 +414,8 @@ def main():
     parser.add_argument("--output", type=str, help="Output file path")
     parser.add_argument("--data-dir", type=Path, default=None,
                        help="Base data directory")
+    parser.add_argument("--max-subjects", type=int, default=12,
+                       help="Maximum number of subjects to visualize (default: 12)")
 
     args = parser.parse_args()
 
@@ -384,7 +461,7 @@ def main():
         else:
             # Visualize in 3D
             print("\nVisualizing 3D poses...")
-            visualize_3d_pose_matplotlib(poses_3d, sequence, frame_idx, args.output)
+            visualize_3d_pose_matplotlib(poses_3d, sequence, frame_idx, args.output, args.max_subjects)
 
         print("\n" + "="*80)
         print("VISUALIZATION COMPLETE")

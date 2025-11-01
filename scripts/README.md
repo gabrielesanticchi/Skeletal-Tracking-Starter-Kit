@@ -105,6 +105,9 @@ python scripts/visualization/visualize_3d_pose.py
 # 3D visualization - specific sequence and frame
 python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100
 
+# Limit number of subjects displayed
+python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100 --max-subjects 4
+
 # 2D projection on image
 python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100 --project
 
@@ -118,29 +121,42 @@ python scripts/visualization/visualize_3d_pose.py --project --output pose_2d.jpg
 - `--frame`: Frame index (random if not specified)
 - `--project`: Project 3D poses to 2D and overlay on image
 - `--output`: Output file path (displays in window if not specified)
+- `--max-subjects`: Maximum number of subjects to display (default: 12)
 - `--data-dir`: Custom data directory path (optional)
 
 **Features:**
-- **3D Mode**: Interactive 3D plot showing skeletal structure
-  - Color-coded skeletons for different subjects
-  - Proper anatomical connections (15 SMPL joints)
-  - Equal aspect ratio and grid
+- **3D Mode**: Separate subplot for each subject showing clear skeletal structure
+  - Each subject in its own 3D subplot with proper scaling
+  - Color-coded body parts:
+    - Blue: Spine/Head
+    - Purple: Left Arm
+    - Orange: Right Arm
+    - Red: Left Leg
+    - Green: Right Leg
+  - Anatomically correct connections (25 SMPL joints)
+  - Adaptive grid layout (1x1, 2x2, 3x3, 3x4, etc.)
+  - Legend showing body part colors
+  - Clear viewing angle for standing poses
 
 - **2D Projection Mode**: Overlay 2D poses on original images
   - Projects 3D poses using camera parameters
   - Visualizes skeletal connections
   - Color-coded by subject
 
-**Joint Structure (15 SMPL joints):**
+**Joint Structure (25 SMPL joints):**
 ```
-0: nose
-1-2: right_shoulder, left_shoulder
-3-4: right_elbow, left_elbow
-5-6: right_wrist, left_wrist
-7-8: right_hip, left_hip
-9-10: right_knee, left_knee
-11-12: right_ankle, left_ankle
-13-14: right_foot, left_foot
+0: pelvis
+1: left_hip, 2: right_hip
+3: spine1, 4: left_knee, 5: right_knee
+6: spine2, 7: left_ankle, 8: right_ankle
+9: spine3, 10: left_foot, 11: right_foot
+12: neck
+13: left_collar, 14: right_collar
+15: head
+16: left_shoulder, 17: right_shoulder
+18: left_elbow, 19: right_elbow
+20: left_wrist, 21: right_wrist
+22: left_hand, 23: right_hand
 ```
 
 ## Requirements
