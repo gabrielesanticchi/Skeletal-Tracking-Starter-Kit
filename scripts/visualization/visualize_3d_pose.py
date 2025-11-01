@@ -123,14 +123,15 @@ def select_random_sequence_and_frame(
 
 def get_skeleton_connections():
     """
-    Define skeleton connections for SMPL 25-joint visualization.
+    Define skeleton connections for 4D-Humans 25-joint output (SMPL 24 + Nose).
     Returns list of tuples (joint1_idx, joint2_idx) representing bones.
 
-    SMPL 25 joint order (standard SMPL-X body model):
-    0: pelvis, 1: left_hip, 2: right_hip, 3: spine1, 4: left_knee, 5: right_knee,
-    6: spine2, 7: left_ankle, 8: right_ankle, 9: spine3, 10: left_foot, 11: right_foot,
-    12: neck, 13: left_collar, 14: right_collar, 15: head, 16: left_shoulder, 17: right_shoulder,
-    18: left_elbow, 19: right_elbow, 20: left_wrist, 21: right_wrist, 22: left_hand, 23: right_hand
+    Joint order (4D-Humans output, SMPL + extra nose):
+    0: Pelvis, 1: L_Hip, 2: R_Hip, 3: Spine1, 4: L_Knee, 5: R_Knee,
+    6: Spine2, 7: L_Ankle, 8: R_Ankle, 9: Spine3, 10: L_Foot, 11: R_Foot,
+    12: Neck, 13: L_Collar, 14: R_Collar, 15: Head, 16: L_Shoulder, 17: R_Shoulder,
+    18: L_Elbow, 19: R_Elbow, 20: L_Wrist, 21: R_Wrist, 22: L_Hand, 23: R_Hand,
+    24: Nose (extra joint)
     """
     connections = [
         # Spine chain (central axis)
@@ -139,6 +140,7 @@ def get_skeleton_connections():
         (6, 9),   # spine2 -> spine3
         (9, 12),  # spine3 -> neck
         (12, 15), # neck -> head
+        (15, 24), # head -> nose
 
         # Left leg
         (0, 1),   # pelvis -> left_hip
@@ -263,19 +265,30 @@ def visualize_3d_pose_matplotlib(
         for joint1, joint2 in connections:
             if joint1 < len(pose) and joint2 < len(pose):
                 # Determine color based on body part
-                if joint1 == 0 or joint2 == 0 or (joint1 in [3, 6, 9, 12, 15] and joint2 in [3, 6, 9, 12, 15]):
+                # Spine: 0(pelvis), 3(spine1), 6(spine2), 9(spine3), 12(neck), 15(head), 24(nose)
+                spine_joints = [0, 3, 6, 9, 12, 15, 24]
+                # Left leg: 1(L_hip), 4(L_knee), 7(L_ankle), 10(L_foot)
+                left_leg_joints = [1, 4, 7, 10]
+                # Right leg: 2(R_hip), 5(R_knee), 8(R_ankle), 11(R_foot)
+                right_leg_joints = [2, 5, 8, 11]
+                # Left arm: 13(L_collar), 16(L_shoulder), 18(L_elbow), 20(L_wrist), 22(L_hand)
+                left_arm_joints = [13, 16, 18, 20, 22]
+                # Right arm: 14(R_collar), 17(R_shoulder), 19(R_elbow), 21(R_wrist), 23(R_hand)
+                right_arm_joints = [14, 17, 19, 21, 23]
+
+                if joint1 in spine_joints and joint2 in spine_joints:
                     color = color_spine
                     linewidth = 3
-                elif joint1 in [1, 4, 7, 10] or joint2 in [1, 4, 7, 10]:
+                elif joint1 in left_leg_joints or joint2 in left_leg_joints:
                     color = color_left_leg
                     linewidth = 2.5
-                elif joint1 in [2, 5, 8, 11] or joint2 in [2, 5, 8, 11]:
+                elif joint1 in right_leg_joints or joint2 in right_leg_joints:
                     color = color_right_leg
                     linewidth = 2.5
-                elif joint1 in [13, 16, 18, 20, 22] or joint2 in [13, 16, 18, 20, 22]:
+                elif joint1 in left_arm_joints or joint2 in left_arm_joints:
                     color = color_left_arm
                     linewidth = 2.5
-                elif joint1 in [14, 17, 19, 21, 23] or joint2 in [14, 17, 19, 21, 23]:
+                elif joint1 in right_arm_joints or joint2 in right_arm_joints:
                     color = color_right_arm
                     linewidth = 2.5
                 else:

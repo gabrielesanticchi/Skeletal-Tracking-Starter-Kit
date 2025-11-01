@@ -33,15 +33,15 @@ def get_project_root() -> Path:
     return current.parent.parent.parent
 
 
-def load_data(data_dir: Path) -> Tuple[dict, dict]:
+def load_data(data_dir: Path) -> Tuple[dict, list]:
     """
-    Load bounding box data.
+    Load bounding box data and return only sequences that have bounding boxes.
 
     Args:
         data_dir: Path to data directory
 
     Returns:
-        Tuple of (boxes_data, sequences)
+        Tuple of (boxes_data, sequences_with_boxes)
     """
     boxes_path = data_dir / "boxes.npz"
     if not boxes_path.exists():
@@ -49,8 +49,11 @@ def load_data(data_dir: Path) -> Tuple[dict, dict]:
 
     boxes = np.load(boxes_path, allow_pickle=True)
     boxes_data = {key: boxes[key] for key in boxes.files}
+    
+    # Only return sequences that are present in boxes.npz
+    sequences_with_boxes = sorted(list(boxes_data.keys()))
 
-    return boxes_data, list(boxes_data.keys())
+    return boxes_data, sequences_with_boxes
 
 
 def select_random_sequence_and_frame(
@@ -256,7 +259,8 @@ def main():
         # Load data
         print("Loading bounding box data...")
         boxes_data, sequences = load_data(data_dir)
-        print(f"✓ Loaded {len(sequences)} sequences\n")
+        print(f"✓ Loaded {len(sequences)} sequences with bounding boxes")
+        print(f"  (Note: Only sequences in boxes.npz can be visualized)\n")
 
         # Select sequence and frame
         sequence, frame_idx = select_random_sequence_and_frame(
@@ -265,6 +269,12 @@ def main():
             args.sequence,
             args.frame
         )
+        
+        # Verify sequence has bounding boxes
+        if sequence not in boxes_data:
+            print(f"\n❌ Error: Sequence '{sequence}' not found in boxes.npz")
+            print(f"Available sequences with bounding boxes: {', '.join(sequences)}")
+            sys.exit(1)
 
         # Load image
         print(f"\nLoading image...")

@@ -143,21 +143,34 @@ python scripts/visualization/visualize_3d_pose.py --project --output pose_2d.jpg
   - Visualizes skeletal connections
   - Color-coded by subject
 
-**Joint Structure (25 SMPL joints):**
+**Joint Structure (4D-Humans 25 joints = SMPL 24 + Nose):**
 ```
-0: pelvis
-1: left_hip, 2: right_hip
-3: spine1, 4: left_knee, 5: right_knee
-6: spine2, 7: left_ankle, 8: right_ankle
-9: spine3, 10: left_foot, 11: right_foot
-12: neck
-13: left_collar, 14: right_collar
-15: head
-16: left_shoulder, 17: right_shoulder
-18: left_elbow, 19: right_elbow
-20: left_wrist, 21: right_wrist
-22: left_hand, 23: right_hand
+0: Pelvis (root)
+1: L_Hip, 2: R_Hip
+3: Spine1
+4: L_Knee, 5: R_Knee
+6: Spine2
+7: L_Ankle, 8: R_Ankle
+9: Spine3
+10: L_Foot, 11: R_Foot
+12: Neck
+13: L_Collar, 14: R_Collar
+15: Head
+16: L_Shoulder, 17: R_Shoulder
+18: L_Elbow, 19: R_Elbow
+20: L_Wrist, 21: R_Wrist
+22: L_Hand, 23: R_Hand
+24: Nose (extra joint)
 ```
+
+**Skeleton Structure:**
+- **Spine:** Pelvis(0) → Spine1(3) → Spine2(6) → Spine3(9) → Neck(12) → Head(15) → Nose(24)
+- **Left Leg:** Pelvis(0) → L_Hip(1) → L_Knee(4) → L_Ankle(7) → L_Foot(10)
+- **Right Leg:** Pelvis(0) → R_Hip(2) → R_Knee(5) → R_Ankle(8) → R_Foot(11)
+- **Left Arm:** Spine3(9) → L_Collar(13) → L_Shoulder(16) → L_Elbow(18) → L_Wrist(20) → L_Hand(22)
+- **Right Arm:** Spine3(9) → R_Collar(14) → R_Shoulder(17) → R_Elbow(19) → R_Wrist(21) → R_Hand(23)
+
+**Note:** This is the output format from 4D-Humans preprocessing. For competition submission, only 15 joints are used (see submission format in main README).
 
 ## Requirements
 

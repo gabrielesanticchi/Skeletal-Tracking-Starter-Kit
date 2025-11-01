@@ -30,18 +30,24 @@ def get_project_root() -> Path:
     return current.parent.parent.parent
 
 
-def load_boxes_sequences(boxes_path: Path) -> List[str]:
+def load_camera_sequences(cameras_dir: Path) -> List[str]:
     """
-    Load sequence names from boxes.npz file.
+    Load sequence names from cameras directory.
 
     Args:
-        boxes_path: Path to boxes.npz file
+        cameras_dir: Path to cameras directory
 
     Returns:
-        List of sequence names
+        List of sequence names (without .npz extension)
     """
-    data = np.load(boxes_path, allow_pickle=True)
-    return list(data.keys())
+    if not cameras_dir.exists():
+        return []
+    
+    # Get all .npz files in cameras directory
+    camera_files = sorted(cameras_dir.glob("*.npz"))
+    # Extract sequence names (remove .npz extension)
+    sequences = [f.stem for f in camera_files]
+    return sequences
 
 
 def find_video_file(sequence_name: str, video_base_dir: Path) -> Optional[Path]:
@@ -63,6 +69,24 @@ def find_video_file(sequence_name: str, video_base_dir: Path) -> Optional[Path]:
             return video_path
 
     return None
+
+
+def check_if_images_exist(output_dir: Path) -> bool:
+    """
+    Check if images already exist for a sequence.
+
+    Args:
+        output_dir: Output directory to check
+
+    Returns:
+        True if images exist, False otherwise
+    """
+    if not output_dir.exists():
+        return False
+    
+    # Check if directory has any .jpg files
+    jpg_files = list(output_dir.glob("*.jpg"))
+    return len(jpg_files) > 0
 
 
 def extract_frames_from_video(
@@ -133,7 +157,7 @@ def main():
     parser.add_argument(
         "--sequences",
         nargs="+",
-        help="Specific sequences to process (e.g., ARG_FRA_182345). If not specified, all sequences in boxes.npz will be processed."
+        help="Specific sequences to process (e.g., ARG_FRA_182345). If not specified, all sequences in cameras/ will be processed."
     )
     parser.add_argument(
         "--fps-limit",
@@ -156,13 +180,13 @@ def main():
         project_root = get_project_root()
         data_dir = project_root / "data"
 
-    boxes_path = data_dir / "boxes.npz"
+    cameras_dir = data_dir / "cameras"
     video_base_dir = data_dir / "videos"
     images_base_dir = data_dir / "images"
 
     # Check if required paths exist
-    if not boxes_path.exists():
-        print(f"❌ Error: boxes.npz not found at {boxes_path}")
+    if not cameras_dir.exists():
+        print(f"❌ Error: cameras directory not found at {cameras_dir}")
         sys.exit(1)
 
     if not video_base_dir.exists():
@@ -174,8 +198,8 @@ def main():
         sequences_to_process = args.sequences
         print(f"Processing {len(sequences_to_process)} specified sequence(s)")
     else:
-        sequences_to_process = load_boxes_sequences(boxes_path)
-        print(f"Processing all {len(sequences_to_process)} sequences from boxes.npz")
+        sequences_to_process = load_camera_sequences(cameras_dir)
+        print(f"Processing all {len(sequences_to_process)} sequences from cameras/")
 
     # Process each sequence
     print("\n" + "="*80)
@@ -185,8 +209,19 @@ def main():
     successful = []
     failed = []
 
+    skipped = []
+
     for sequence_name in sequences_to_process:
         print(f"\n📹 Processing: {sequence_name}")
+
+        # Setup output directory
+        output_dir = images_base_dir / sequence_name
+
+        # Check if images already exist
+        if check_if_images_exist(output_dir):
+            print(f"   ⏭️  Images already exist, skipping...")
+            skipped.append(sequence_name)
+            continue
 
         # Find video file
         video_path = find_video_file(sequence_name, video_base_dir)
@@ -196,9 +231,6 @@ def main():
             continue
 
         print(f"   Found video: {video_path.relative_to(data_dir)}")
-
-        # Setup output directory
-        output_dir = images_base_dir / sequence_name
 
         # Extract frames
         try:
@@ -218,17 +250,22 @@ def main():
     print("EXTRACTION SUMMARY")
     print("="*80)
     print(f"✅ Successful: {len(successful)}/{len(sequences_to_process)}")
+    if skipped:
+        print(f"⏭️  Skipped (already exist): {len(skipped)}")
     if failed:
         print(f"❌ Failed: {len(failed)}")
         print("   Failed sequences:")
         for seq in failed:
             print(f"   - {seq}")
-    else:
-        print("\n🎉 All sequences processed successfully!")
+    
+    if len(failed) == 0 and len(successful) > 0:
+        print("\n🎉 All new sequences processed successfully!")
         print(f"\nFrames saved to: {images_base_dir}/")
         print("\nNext steps:")
         print("1. Verify the extracted images match your expectations")
         print("2. Run the baseline model: python baseline.py")
+    elif len(skipped) > 0 and len(successful) == 0 and len(failed) == 0:
+        print("\n✓ All sequences already have extracted images.")
 
     return 0 if len(failed) == 0 else 1
 
