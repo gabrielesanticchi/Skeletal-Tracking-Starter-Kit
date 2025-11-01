@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(PYTHONPATH=src python:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(rg:*)",
+      "Bash(source:*)",
+      "Bash(mkdir:*)",
+      "Bash(timeout:*)",
+      "Bash(grep:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(cat:*)",
+      "Bash(pwd:*)",
+      "Bash(echo:*)"
+    ],
+    "deny": []
+  }
+}

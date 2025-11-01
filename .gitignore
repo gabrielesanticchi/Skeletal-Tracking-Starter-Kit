@@ -1,12 +1,35 @@
-#add files
+# Data files (large datasets)
 *.csv
-*.json
-*.txt
 *.npz
 *.mp4
 
+# Images
+*.png
+*.jpg
+
+# Archives and documents
 *.7z
 *.zip
 *.pdf
 
+# Text files (can contain large data)
+*.txt
+
+# Configuration files
+*.json
+# But allow .claude permissions
+!.claude/permissions.json
+
+# System files
 .DS_Store
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Data directories (contain large datasets)
+data/images/
+data/videos/
+data/poses/
+data/cameras/
