@@ -1,0 +1,32 @@
+# RT-DETR Detection Configuration
+# This example uses RT-DETR (BSD-3-Clause license - commercial-friendly)
+
+detector:
+  type: rtdetr
+  module: detectors.rtdetr_detector
+  class: RTDETRDetector
+  model_name: rtdetr_r50  # Options: rtdetr_r18, rtdetr_r34, rtdetr_r50, rtdetr_r101
+  model_path: null  # Path to custom weights (null = use pretrained)
+  confidence_threshold: 0.5
+  device: cpu  # 'cpu' or 'cuda'
+  class_filter: [0]  # Filter to person class only (0 = person in COCO)
+
+tracker:
+  enabled: true
+  type: bytetrack
+  module: trackers.bytetrack_tracker
+  class: ByteTrackTracker
+  track_thresh: 0.5  # High confidence threshold for track initialization
+  track_buffer: 30  # Number of frames to keep lost tracks
+  match_thresh: 0.8  # IoU threshold for matching
+  low_thresh: 0.1   # Low confidence threshold for second association
+  min_hits: 3       # Minimum hits to confirm track
+
+visualization:
+  show_detections: true
+  show_tracks: true
+  fps: 25
+
+output:
+  save_video: true
+  save_predictions: true

@@ -447,12 +447,29 @@ def main():
         # Load data
         print("Loading data...")
         skel_3d, skel_2d, boxes, cameras, sequences = load_data(data_dir)
-        print(f"✓ Loaded {len(sequences)} sequences\n")
+        print(f"✓ Loaded {len(sequences)} sequences with 3D poses")
+
+        # Check cameras directory to see total available
+        cameras_dir = data_dir / "cameras"
+        if cameras_dir.exists():
+            total_cameras = len(list(cameras_dir.glob("*.npz")))
+            if total_cameras > len(sequences):
+                print(f"  Note: {total_cameras} sequences have cameras, but only {len(sequences)} have poses generated")
+                print(f"  (Poses need to be generated with preprocess.py)")
+        print()
 
         # Select sequence and frame
         sequence, frame_idx = select_random_sequence_and_frame(
             boxes, sequences, args.sequence, args.frame
         )
+
+        # Verify sequence has pose data
+        if sequence not in skel_3d:
+            print(f"\n❌ Error: Sequence '{sequence}' found but has no pose data")
+            print(f"Available sequences with poses: {', '.join(sorted(sequences))}")
+            print(f"\nTo generate poses for all sequences, run:")
+            print(f"  python preprocess.py")
+            sys.exit(1)
 
         # Get 3D poses for this frame
         poses_3d = skel_3d[sequence][frame_idx]

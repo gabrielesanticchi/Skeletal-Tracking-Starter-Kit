@@ -1,0 +1,34 @@
+# YOLO ONNX Detection Configuration
+# This example uses YOLO via ONNX Runtime (MIT license - commercial-friendly)
+# Note: You need to provide your own ONNX model file
+
+detector:
+  type: yolo_onnx
+  module: detectors.yolo_onnx_detector
+  class: YOLOONNXDetector
+  model_path: models/yolov8n.onnx  # Path to ONNX model file
+  input_size: 640
+  confidence_threshold: 0.5
+  nms_threshold: 0.45
+  device: cpu  # 'cpu' or 'cuda'
+  class_filter: [0]  # Filter to person class only (0 = person in COCO)
+
+tracker:
+  enabled: true
+  type: bytetrack
+  module: trackers.bytetrack_tracker
+  class: ByteTrackTracker
+  track_thresh: 0.5
+  track_buffer: 30
+  match_thresh: 0.8
+  low_thresh: 0.1
+  min_hits: 3
+
+visualization:
+  show_detections: true
+  show_tracks: true
+  fps: 25
+
+output:
+  save_video: true
+  save_predictions: true

@@ -460,20 +460,23 @@ def baseline(boxes, cameras, skels_3d, skels_2d, image_dir):
 
 def main(root):
     solutions = {}
-    skels_2d = np.load(root / "skel_2d_4dhuman.npz")
-    skels_3d = np.load(root / "skel_3d_4dhuman.npz")
+    skels_2d = np.load(root / "skel_2d.npz")
+    skels_3d = np.load(root / "skel_3d.npz")
     boxes = np.load(root / "boxes.npz")
     for cam_path in root.glob("cameras/*.npz"):
         sequence_name = cam_path.stem
         img_dir = root / "images" / sequence_name
         cam = dict(np.load(cam_path))
-        solutions[sequence_name] = baseline(
-            cameras=cam,
-            boxes=boxes[sequence_name],
-            skels_3d=skels_3d[sequence_name][:, :, OPENPOSE_TO_OURS],
-            skels_2d=skels_2d[sequence_name][:, :, OPENPOSE_TO_OURS],
-            image_dir=img_dir,
-        )
+        try:
+            solutions[sequence_name] = baseline(
+                cameras=cam,
+                boxes=boxes[sequence_name],
+                skels_3d=skels_3d[sequence_name][:, :, OPENPOSE_TO_OURS],
+                skels_2d=skels_2d[sequence_name][:, :, OPENPOSE_TO_OURS],
+                image_dir=img_dir,
+            )
+        except Exception as e:
+            print(f"Error in {sequence_name}: {e}")
     np.savez_compressed("dummy-solution.npz", **solutions)
 
 

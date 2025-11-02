@@ -23,12 +23,12 @@ pip install numpy torch opencv-python tqdm scipy
 
 The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** with different data availability:
 
-| Subset | Videos | Cameras | Bounding Boxes | 2D Poses | 3D Poses | Purpose |
-|--------|--------|---------|----------------|----------|----------|---------|
-| **TRAIN_DATA** | 89 | ✓ | ✗ | ✗ | ✗ | Training - requires preprocessing |
-| **TEST_DATA** | 8 | ✗ | ✓ (7/8) | ✓ (7/8) | ✓ (7/8) | Validation with ground truth |
-| **CHALLENGE_DATA** | 7 | ✗ | ✓ (6/7) | ✓ (6/7) | ✓ (6/7) | Final evaluation |
-| **TOTAL** | **104** | **89** | **13** | **13** | **13** | |
+| Subset | Videos | Cameras | Bounding Boxes | SMPL Poses (Raw) | 2D/3D Poses (Processed) | Purpose |
+|--------|--------|---------|----------------|------------------|------------------------|---------|
+| **TRAIN_DATA** | 89 | ✓ | ✗ | ✓ | ✗ | Training - requires preprocessing |
+| **TEST_DATA** | 8 | ✗ | ✓ (7/8) | ✓ | ✓ (7/8) | Validation with ground truth |
+| **CHALLENGE_DATA** | 7 | ✗ | ✓ (6/7) | ✓ | ✓ (6/7) | Final evaluation |
+| **TOTAL** | **104** | **89** | **13** | **All 104** | **13** | |
 
 ### Data Availability Details
 
@@ -37,15 +37,17 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 - ✓ Videos (`.mp4` files)
 - ✓ Camera parameters (intrinsics `K`, distortion `k`, first frame `R` and `t`)
 - ✓ Raw images (after running `extract_frames.py`)
+- ✓ SMPL poses (raw SMPL parameters in `data/poses/<sequence>.npz`)
 
 **What you DON'T have (need to generate):**
-- ✗ Bounding boxes
-- ✗ 2D skeletal poses
-- ✗ 3D skeletal poses
+- ✗ Bounding boxes (can be generated from SMPL mesh projections)
+- ✗ 2D skeletal keypoints (processed)
+- ✗ 3D skeletal keypoints (processed)
 
 **How to use:**
 - Train your models on these sequences
-- Generate poses using `preprocess.py` (requires 4D-Humans)
+- Generate bounding boxes from SMPL mesh projections (see `scripts/preprocessing/generate_boxes_from_smpl.py`)
+- Generate processed 2D/3D poses using `preprocess.py` (requires 4D-Humans)
 - Estimate camera poses for frames 2+ (only frame 1 R,t provided)
 
 **Example sequences:** `ARG_CRO_220001`, `ARG_FRA_182345`, `BRA_CRO_210113`, etc.
@@ -53,12 +55,14 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 #### 2. **TEST_DATA (8 sequences, 7 with annotations)**
 **What you have:**
 - ✓ Videos (`.mp4` files)
-- ✓ Bounding boxes (7 sequences)
-- ✓ 2D skeletal poses (7 sequences, pre-generated)
-- ✓ 3D skeletal poses (7 sequences, pre-generated)
+- ✓ SMPL poses (all 8 sequences in `data/poses/`)
+- ✓ Bounding boxes (7 sequences in `data/boxes.npz`)
+- ✓ 2D skeletal keypoints (7 sequences, pre-generated in `data/skel_2d.npz`)
+- ✓ 3D skeletal keypoints (7 sequences, pre-generated in `data/skel_3d.npz`)
 
 **What you DON'T have:**
 - ✗ Camera parameters (except first frame - you must track camera pose)
+- ✗ Bounding boxes for 1 sequence (can be generated from SMPL)
 
 **Available sequences:**
 - ✓ `ARG_CRO_000737` - 1042 frames, 21 subjects
@@ -78,12 +82,14 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 #### 3. **CHALLENGE_DATA (7 sequences, 6 with annotations)**
 **What you have:**
 - ✓ Videos (`.mp4` files)
-- ✓ Bounding boxes (6 sequences)
-- ✓ 2D skeletal poses (6 sequences, pre-generated)
-- ✓ 3D skeletal poses (6 sequences, pre-generated)
+- ✓ SMPL poses (all 7 sequences in `data/poses/`)
+- ✓ Bounding boxes (6 sequences in `data/boxes.npz`)
+- ✓ 2D skeletal keypoints (6 sequences, pre-generated in `data/skel_2d.npz`)
+- ✓ 3D skeletal keypoints (6 sequences, pre-generated in `data/skel_3d.npz`)
 
 **What you DON'T have:**
 - ✗ Camera parameters (must be estimated)
+- ✗ Bounding boxes for 1 sequence (can be generated from SMPL)
 
 **Available sequences:**
 - ✓ `ARG_CRO_225412` - 569 frames, 21 subjects
@@ -115,8 +121,25 @@ Each file contains per-frame camera intrinsics and first-frame extrinsics:
 
 **Important:** You must estimate camera poses (R, t) for frames 2 onwards.
 
+#### SMPL Poses (`data/poses/<sequence>.npz`)
+Contains raw SMPL parameters for **all 104 sequences** (train + test + challenge):
+
+```python
+{
+    "global_orient": (num_frames, num_subjects, 3),  # Global orientation (axis-angle)
+    "body_pose": (num_frames, num_subjects, 69),     # Body pose parameters (23 joints × 3)
+    "transl": (num_frames, num_subjects, 3),         # Translation in world coordinates
+    "betas": (num_frames, num_subjects, 10)          # Shape parameters
+}
+```
+
+**Note:** These are SMPL model parameters from WorldPose dataset. You can:
+- Project SMPL meshes to generate bounding boxes for all sequences
+- Use SMPL parameters for pose estimation and tracking
+- Generate 2D/3D keypoints using SMPL joint locations
+
 #### Bounding Boxes (`data/boxes.npz`)
-Contains bounding boxes for 13 sequences (test + challenge data):
+Contains bounding boxes for **13 sequences** (test + challenge data):
 
 ```python
 {
@@ -125,6 +148,8 @@ Contains bounding boxes for 13 sequences (test + challenge data):
     # np.nan indicates subject not present in frame
 }
 ```
+
+**Note:** Bounding boxes can be generated for all sequences by projecting SMPL meshes (see `scripts/preprocessing/generate_boxes_from_smpl.py`).
 
 #### 2D Poses (`data/skel_2d.npz`)
 Contains 2D skeletal keypoints (25 joints from 4D-Humans = SMPL 24 + nose):
@@ -216,18 +241,50 @@ data/
 # 1. Extract frames from videos (creates images/ directory)
 python scripts/preprocessing/extract_frames.py
 
-# 2. Validate data consistency (optional)
+# 2. Generate bounding boxes from SMPL poses (for training data)
+python scripts/preprocessing/generate_boxes_simple.py --merge --limit 10
+
+# 3. Validate data consistency (optional)
 python scripts/preprocessing/validate_data.py
 
-# 3. Visualize bounding boxes (test subset only)
+# 4. Visualize bounding boxes
 python scripts/visualization/visualize_bboxes.py --sequence ARG_FRA_183303
 
-# 4. Visualize 3D poses (test subset only)
+# 5. Visualize 3D poses (for sequences with processed poses)
 python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100
 ```
 
 ### 📺 Sample Visualization
-To help you visualize the results, we provide a short sample sequence in `media/sample.mp4`. 
+To help you visualize the results, we provide a short sample sequence in `media/sample.mp4`.
+
+## 🤖 Object Detection Evaluation Pipeline
+
+A flexible, plug-in based pipeline for evaluating object detection and tracking algorithms.
+
+### Features
+
+- **Commercial-Friendly Detectors**:
+  - RT-DETR (BSD-3-Clause): High-performance transformer-based detector
+  - YOLO ONNX (MIT): YOLO models via ONNX Runtime
+- **ByteTrack Tracker** (MIT): State-of-the-art multi-object tracking
+- **YAML Configuration**: Easy configuration and experimentation
+- **Comprehensive Output**: Video visualization and prediction files
+
+### Quick Start
+
+```bash
+# Install dependencies
+source .venv/bin/activate
+uv pip install torch torchvision scipy pyyaml
+
+# Run RT-DETR evaluation
+python scripts/evaluation/run_evaluation.py \
+    --config scripts/evaluation/configs/rtdetr_example.yaml \
+    --sequence ARG_FRA_183303 \
+    --output-dir results/ARG_FRA_183303
+```
+
+For detailed documentation, see [`scripts/evaluation/README.md`](scripts/evaluation/README.md).
 
 ## 🔧 Running the Baseline
 To run the baseline model on the dataset, simply execute:
