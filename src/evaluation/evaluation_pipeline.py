@@ -49,7 +49,7 @@ class EvaluationPipeline:
         """Load detector based on configuration."""
         detector_config = self.config.get('detector', {})
         detector_type = detector_config.get('type', 'yolo')
-        detector_module_path = detector_config.get('module', f'detectors.{detector_type}_detector')
+        detector_module_path = detector_config.get('module', f'evaluation.detectors.{detector_type}_detector')
 
         # Dynamically import detector module
         try:
@@ -77,7 +77,7 @@ class EvaluationPipeline:
             return
 
         tracker_type = tracker_config.get('type', 'bytetrack')
-        tracker_module_path = tracker_config.get('module', f'trackers.{tracker_type}_tracker')
+        tracker_module_path = tracker_config.get('module', f'evaluation.trackers.{tracker_type}_tracker')
 
         # Dynamically import tracker module
         try:

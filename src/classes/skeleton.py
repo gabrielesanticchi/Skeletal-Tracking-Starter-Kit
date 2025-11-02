@@ -168,28 +168,37 @@ class Skeleton2DData:
             if show_skeleton:
                 for joint1_idx, joint2_idx in SMPL_SKELETON_CONNECTIONS:
                     if joint1_idx < len(kpts) and joint2_idx < len(kpts):
-                        pt1 = tuple(kpts[joint1_idx].astype(int))
-                        pt2 = tuple(kpts[joint2_idx].astype(int))
+                        pt1_coords = kpts[joint1_idx]
+                        pt2_coords = kpts[joint2_idx]
 
-                        # Skip if either point is invalid
-                        if pt1 == (0, 0) or pt2 == (0, 0):
+                        # Skip if either point is invalid (NaN or zero)
+                        if np.any(np.isnan(pt1_coords)) or np.any(np.isnan(pt2_coords)):
                             continue
+                        if np.all(pt1_coords == 0) or np.all(pt2_coords == 0):
+                            continue
+
+                        pt1 = tuple(pt1_coords.astype(int))
+                        pt2 = tuple(pt2_coords.astype(int))
 
                         # Use connection color (average of endpoints)
                         conn_color = color_mapper.get_connection_color((joint1_idx, joint2_idx), format='bgr')
+                        conn_color = tuple(int(c) for c in conn_color)  # Ensure integers
                         cv2.line(img_display, pt1, pt2, conn_color, 2)
 
             # Draw joint points with individual colors
             if show_joints:
                 for joint_idx in range(len(kpts)):
-                    pt = tuple(kpts[joint_idx].astype(int))
+                    pt_coords = kpts[joint_idx]
 
-                    # Skip invalid points
-                    if pt == (0, 0):
+                    # Skip invalid points (NaN or zero)
+                    if np.any(np.isnan(pt_coords)) or np.all(pt_coords == 0):
                         continue
+
+                    pt = tuple(pt_coords.astype(int))
 
                     # Get joint-specific color
                     joint_color = color_mapper.get_joint_color(joint_idx, format='bgr')
+                    joint_color = tuple(int(c) for c in joint_color)  # Ensure integers
                     cv2.circle(img_display, pt, 5, joint_color, -1)
                     cv2.circle(img_display, pt, 5, (255, 255, 255), 1)  # White border
 
