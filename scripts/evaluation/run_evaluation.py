@@ -20,10 +20,10 @@ import argparse
 from pathlib import Path
 import sys
 
-# Add current directory to path
-sys.path.append(str(Path(__file__).parent))
+# Add src to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
 
-from evaluation_pipeline import EvaluationPipeline
+from evaluation.evaluation_pipeline import EvaluationPipeline
 
 
 def main():

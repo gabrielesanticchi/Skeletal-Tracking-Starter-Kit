@@ -14,7 +14,41 @@ This repository provides a **naïve baseline** for the **FIFA Skeletal Tracking 
 Make sure you have the required dependencies installed:
 
 ```bash
-pip install numpy torch opencv-python tqdm scipy
+pip install numpy torch opencv-python tqdm scipy matplotlib
+```
+
+### 🏗️ Project Structure
+
+```
+Skeletal-Tracking-Starter-Kit/
+├── data/                           # Dataset files
+│   ├── videos/                     # Video files
+│   ├── cameras/                    # Camera parameters
+│   ├── poses/                      # SMPL pose parameters
+│   ├── images/                     # Extracted frames
+│   ├── boxes.npz                   # Bounding boxes
+│   ├── skel_2d.npz                 # 2D skeletal keypoints
+│   └── skel_3d.npz                 # 3D skeletal keypoints
+├── src/                            # Source code
+│   ├── classes/                    # Core OOP classes
+│   │   ├── poses.py                # PosesData class
+│   │   ├── cameras.py              # CamerasData class
+│   │   ├── bboxes.py               # BBoxesData class
+│   │   ├── skeleton.py             # Skeleton2DData, Skeleton3DData
+│   │   ├── metadata.py             # ImageMetadata, VideoMetadata
+│   │   └── README.md               # Classes documentation
+│   └── evaluation/                 # Evaluation pipeline
+│       ├── base_detector.py        # Detector base class
+│       ├── base_tracker.py         # Tracker base class
+│       ├── evaluation_pipeline.py  # Main evaluation pipeline
+│       ├── detectors/              # Detector implementations
+│       └── trackers/               # Tracker implementations
+├── scripts/                        # Utility scripts
+│   ├── preprocessing/              # Data preprocessing
+│   ├── visualization/              # Visualization tools
+│   └── evaluation/                 # Evaluation scripts
+├── baseline.py                     # Baseline implementation
+└── README.md                       # This file
 ```
 
 ## 📂 Dataset Overview
@@ -253,6 +287,58 @@ python scripts/visualization/visualize_bboxes.py --sequence ARG_FRA_183303
 # 5. Visualize 3D poses (for sequences with processed poses)
 python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100
 ```
+
+## 🎯 Working with the Dataset (OOP Interface)
+
+This repository provides an object-oriented interface for working with the dataset. Instead of manually loading NPZ files, you can use the provided classes for clean, reusable code.
+
+### Quick Example
+
+```python
+import sys
+from pathlib import Path
+
+# Add src to path
+sys.path.insert(0, str(Path.cwd() / 'src'))
+
+from classes import VideoMetadata
+
+# Load all data for a sequence
+data_dir = Path('data')
+video = VideoMetadata.load(data_dir, 'ARG_FRA_183303')
+
+print(f"Sequence: {video.sequence_name}")
+print(f"Frames: {video.num_frames}")
+print(f"Components: {video}")
+
+# Get a specific frame
+frame = video.get_frame(
+    frame_idx=100,
+    load_image=True,
+    images_dir=data_dir / 'images'
+)
+
+# Access frame data
+bboxes = frame.get_bboxes()
+skel_3d = frame.get_skeleton_3d()
+poses = frame.get_poses_data()
+
+# Visualize
+img_with_boxes = frame.visualize_bboxes()
+fig_3d = frame.visualize_skeleton_3d()
+```
+
+### Available Classes
+
+- **PosesData**: SMPL pose parameters (global_orient, body_pose, transl, betas)
+- **CamerasData**: Camera calibration (intrinsics K, k and extrinsics R, t)
+- **BBoxesData**: Bounding boxes in XYXY format
+- **Skeleton2DData**: 2D skeletal keypoints (25 joints)
+- **Skeleton3DData**: 3D skeletal keypoints (25 joints)
+- **ImageMetadata**: Aggregates all data for a single frame
+- **VideoMetadata**: Aggregates all data for an entire sequence
+
+For detailed documentation and examples, see [`src/classes/README.md`](src/classes/README.md).
 
 ### 📺 Sample Visualization
 To help you visualize the results, we provide a short sample sequence in `media/sample.mp4`.
