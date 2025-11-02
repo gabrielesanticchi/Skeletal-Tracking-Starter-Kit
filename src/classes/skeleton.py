@@ -10,6 +10,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import sys
+
+# Import color mapper
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.skeleton_viz import SkeletonColorMapper, SKELETON_CONNECTIONS
 
 
 # SMPL skeleton structure (24 joints + nose)
@@ -21,21 +26,8 @@ SMPL_JOINT_NAMES = [
     'nose'  # Joint 24: extra nose joint added by 4D-Humans
 ]
 
-# Skeleton connections for visualization
-SMPL_SKELETON_CONNECTIONS = [
-    # Spine
-    (0, 1), (0, 2), (0, 3), (3, 6), (6, 9), (9, 12), (12, 15),
-    # Left leg
-    (1, 4), (4, 7), (7, 10),
-    # Right leg
-    (2, 5), (5, 8), (8, 11),
-    # Left arm
-    (9, 13), (13, 16), (16, 18), (18, 20), (20, 22),
-    # Right arm
-    (9, 14), (14, 17), (17, 19), (19, 21), (21, 23),
-    # Head
-    (12, 24),  # neck to nose
-]
+# Use connections from utils
+SMPL_SKELETON_CONNECTIONS = SKELETON_CONNECTIONS
 
 # Submission format: 15 joints from SMPL
 SUBMISSION_JOINT_INDICES = [24, 17, 16, 19, 18, 21, 20, 2, 1, 5, 4, 8, 7, 11, 10]
@@ -145,32 +137,22 @@ class Skeleton2DData:
         frame_idx: int,
         show_skeleton: bool = True,
         show_joints: bool = True,
-        color_palette: Optional[List[Tuple[int, int, int]]] = None
+        show_labels: bool = False
     ) -> np.ndarray:
         """
-        Visualize 2D skeleton on an image.
+        Visualize 2D skeleton on an image with color-coded joints.
 
         Args:
             image: Input image (BGR format)
             frame_idx: Frame index
             show_skeleton: Whether to draw skeleton connections
             show_joints: Whether to draw joint points
-            color_palette: Optional list of BGR colors for different subjects
+            show_labels: Whether to show joint labels
 
         Returns:
             Image with skeleton drawn
         """
-        # Default color palette
-        if color_palette is None:
-            color_palette = [
-                (255, 0, 0),    # Blue
-                (0, 255, 0),    # Green
-                (0, 0, 255),    # Red
-                (255, 255, 0),  # Cyan
-                (255, 0, 255),  # Magenta
-                (0, 255, 255),  # Yellow
-            ]
-
+        color_mapper = SkeletonColorMapper()
         img_display = image.copy()
         keypoints = self.keypoints[frame_idx]
 
@@ -182,9 +164,7 @@ class Skeleton2DData:
             if np.all(kpts == 0):
                 continue
 
-            color = color_palette[subject_idx % len(color_palette)]
-
-            # Draw skeleton connections
+            # Draw skeleton connections first (under joints)
             if show_skeleton:
                 for joint1_idx, joint2_idx in SMPL_SKELETON_CONNECTIONS:
                     if joint1_idx < len(kpts) and joint2_idx < len(kpts):
@@ -195,9 +175,11 @@ class Skeleton2DData:
                         if pt1 == (0, 0) or pt2 == (0, 0):
                             continue
 
-                        cv2.line(img_display, pt1, pt2, color, 2)
+                        # Use connection color (average of endpoints)
+                        conn_color = color_mapper.get_connection_color((joint1_idx, joint2_idx), format='bgr')
+                        cv2.line(img_display, pt1, pt2, conn_color, 2)
 
-            # Draw joint points
+            # Draw joint points with individual colors
             if show_joints:
                 for joint_idx in range(len(kpts)):
                     pt = tuple(kpts[joint_idx].astype(int))
@@ -206,20 +188,35 @@ class Skeleton2DData:
                     if pt == (0, 0):
                         continue
 
-                    cv2.circle(img_display, pt, 3, color, -1)
+                    # Get joint-specific color
+                    joint_color = color_mapper.get_joint_color(joint_idx, format='bgr')
+                    cv2.circle(img_display, pt, 5, joint_color, -1)
+                    cv2.circle(img_display, pt, 5, (255, 255, 255), 1)  # White border
 
-        # Add info text
+                    # Draw label if requested
+                    if show_labels:
+                        label = color_mapper.get_joint_name(joint_idx)
+                        cv2.putText(
+                            img_display,
+                            label,
+                            (pt[0] + 7, pt[1] - 7),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.3,
+                            (255, 255, 255),
+                            1,
+                            cv2.LINE_AA
+                        )
+
+        # Add info text and color legend
         info_text = f"2D Skeleton - {self.sequence_name} - Frame {frame_idx}"
-        cv2.putText(
-            img_display,
-            info_text,
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 0),
-            2,
-            cv2.LINE_AA
-        )
+        cv2.putText(img_display, info_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+
+        # Add color legend
+        legend_y = 60
+        cv2.putText(img_display, "Legend: ", (10, legend_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(img_display, "Blue=Spine", (10, legend_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 150, 50), 1, cv2.LINE_AA)
+        cv2.putText(img_display, "Green=Left", (10, legend_y + 40), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (50, 200, 50), 1, cv2.LINE_AA)
+        cv2.putText(img_display, "Red=Right", (10, legend_y + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (50, 50, 200), 1, cv2.LINE_AA)
 
         return img_display
 
@@ -347,20 +344,23 @@ class Skeleton3DData:
         frame_idx: int,
         figsize: Tuple[int, int] = (15, 5),
         elev: int = 20,
-        azim: int = -60
+        azim: int = -60,
+        show_labels: bool = False
     ) -> plt.Figure:
         """
-        Visualize 3D skeleton in 3D space.
+        Visualize 3D skeleton in 3D space with color-coded joints.
 
         Args:
             frame_idx: Frame index
             figsize: Figure size
             elev: Elevation angle for 3D plot
             azim: Azimuth angle for 3D plot
+            show_labels: Whether to show joint labels
 
         Returns:
             Matplotlib figure
         """
+        color_mapper = SkeletonColorMapper()
         keypoints = self.keypoints[frame_idx]
 
         # Count valid subjects
@@ -381,7 +381,7 @@ class Skeleton3DData:
 
             kpts = keypoints[subject_idx]
 
-            # Draw skeleton connections
+            # Draw skeleton connections first (under joints)
             for joint1_idx, joint2_idx in SMPL_SKELETON_CONNECTIONS:
                 if joint1_idx < len(kpts) and joint2_idx < len(kpts):
                     pt1 = kpts[joint1_idx]
@@ -391,22 +391,41 @@ class Skeleton3DData:
                     if np.all(pt1 == 0) or np.all(pt2 == 0):
                         continue
 
+                    # Get connection color (normalized for matplotlib)
+                    conn_color = color_mapper.get_joint_color_normalized(joint1_idx, format='rgb')
+
                     ax.plot(
                         [pt1[0], pt2[0]],
                         [pt1[1], pt2[1]],
                         [pt1[2], pt2[2]],
-                        'b-', linewidth=2
+                        color=conn_color,
+                        linewidth=2,
+                        alpha=0.7
                     )
 
-            # Draw joint points
-            valid_kpts = kpts[~np.all(kpts == 0, axis=1)]
-            if len(valid_kpts) > 0:
+            # Draw joint points with individual colors
+            for joint_idx in range(len(kpts)):
+                pt = kpts[joint_idx]
+
+                # Skip if point is zero
+                if np.all(pt == 0):
+                    continue
+
+                # Get joint-specific color
+                joint_color = color_mapper.get_joint_color_normalized(joint_idx, format='rgb')
+
                 ax.scatter(
-                    valid_kpts[:, 0],
-                    valid_kpts[:, 1],
-                    valid_kpts[:, 2],
-                    c='r', s=30
+                    pt[0], pt[1], pt[2],
+                    c=[joint_color],
+                    s=50,
+                    edgecolors='white',
+                    linewidths=1
                 )
+
+                # Add label if requested
+                if show_labels:
+                    label = color_mapper.get_joint_name(joint_idx)
+                    ax.text(pt[0], pt[1], pt[2], f'  {label}', fontsize=6)
 
             # Set labels and title
             ax.set_xlabel('X (m)')
@@ -420,7 +439,18 @@ class Skeleton3DData:
             # Set aspect ratio
             ax.set_box_aspect([1, 1, 1])
 
+            # Add grid
+            ax.grid(True, alpha=0.3)
+
         fig.suptitle(f'{self.sequence_name} - Frame {frame_idx}')
+
+        # Add color legend
+        legend_labels = color_mapper.get_legend_labels()
+        legend_elements = [plt.Line2D([0], [0], marker='o', color='w',
+                                      markerfacecolor=color, markersize=8, label=label)
+                          for label, color in legend_labels.items()]
+        fig.legend(handles=legend_elements, loc='upper right', framealpha=0.9)
+
         plt.tight_layout()
 
         return fig

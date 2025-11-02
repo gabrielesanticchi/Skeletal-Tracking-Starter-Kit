@@ -22,6 +22,7 @@
 
 # System files
 .DS_Store
+*.pyc 
 
 # Virtual environment
 .venv/

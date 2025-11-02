@@ -1,7 +1,7 @@
 """
 Visualize 3D skeletal poses from the FIFA Skeletal Tracking Challenge dataset.
 
-This script allows you to visualize 3D poses in 3D space.
+This script visualizes 3D skeletons with color-coded joints in 3D space.
 If no arguments are provided, a random sequence and frame are selected.
 
 Usage:
@@ -16,73 +16,43 @@ Usage:
 
     # Save output
     python scripts/visualization/visualize_3d_pose.py --output pose_3d.png
+
+    # Show joint labels
+    python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100 --show-labels
+
+    # Custom view angles
+    python scripts/visualization/visualize_3d_pose.py --elev 30 --azim -45
 """
 
 import sys
 import random
-import argparse
 import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
 
-from classes import Skeleton3DData, VideoMetadata
-
-
-def get_project_root() -> Path:
-    """Get the project root directory."""
-    current = Path(__file__).resolve()
-    return current.parent.parent.parent
+from classes import Skeleton3DData
+from utils import ArgsParser
 
 
 def main():
     """Main visualization function."""
-    parser = argparse.ArgumentParser(
-        description="Visualize 3D skeletal poses from FIFA Skeletal Tracking Challenge"
+    # Create parser with base and 3D viz arguments
+    parser = ArgsParser.create_base_parser(
+        "Visualize 3D skeletal poses from FIFA Skeletal Tracking Challenge"
     )
+    parser = ArgsParser.add_3d_viz_args(parser)
     parser.add_argument(
-        "--sequence",
-        type=str,
-        help="Sequence name (e.g., ARG_FRA_183303). If not specified, random sequence is selected."
+        '--show-labels',
+        action='store_true',
+        default=False,
+        help='Show joint labels (default: False)'
     )
-    parser.add_argument(
-        "--frame",
-        type=int,
-        help="Frame index. If not specified, random frame is selected."
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        help="Output file path to save visualization. If not specified, displays interactively."
-    )
-    parser.add_argument(
-        "--data-dir",
-        type=Path,
-        default=None,
-        help="Base data directory (default: auto-detect from project root)"
-    )
-    parser.add_argument(
-        "--elev",
-        type=int,
-        default=20,
-        help="Elevation angle for 3D plot (default: 20)"
-    )
-    parser.add_argument(
-        "--azim",
-        type=int,
-        default=-60,
-        help="Azimuth angle for 3D plot (default: -60)"
-    )
-
     args = parser.parse_args()
 
-    # Setup paths
-    if args.data_dir:
-        data_dir = args.data_dir
-    else:
-        project_root = get_project_root()
-        data_dir = project_root / "data"
+    # Get data directory
+    data_dir = ArgsParser.get_data_dir(args)
 
     print("\n" + "="*80)
     print("3D POSE VISUALIZATION")
@@ -97,37 +67,35 @@ def main():
         print(f"✓ Loaded {len(sequences)} sequences with 3D poses\n")
 
         # Select sequence
-        if args.sequence is None:
-            sequence_name = random.choice(sequences)
-            print(f"📌 Randomly selected sequence: {sequence_name}")
-        else:
-            sequence_name = args.sequence
-            if sequence_name not in sequences:
-                print(f"\n❌ Error: Sequence '{sequence_name}' not found in skel_3d.npz")
-                print(f"Available sequences: {', '.join(sequences)}")
-                sys.exit(1)
-            print(f"📌 Using specified sequence: {sequence_name}")
+        sequence_name = args.sequence or random.choice(sequences)
+        if sequence_name not in sequences:
+            print(f"\n❌ Error: Sequence '{sequence_name}' not found in skel_3d.npz")
+            print(f"Available sequences: {', '.join(sequences)}")
+            sys.exit(1)
+        print(f"📌 {'Randomly selected' if not args.sequence else 'Using'} sequence: {sequence_name}")
 
         skel_3d = skel_3d_dict[sequence_name]
 
         # Select frame
-        if args.frame is None:
-            frame_idx = random.randint(0, skel_3d.num_frames - 1)
-            print(f"📌 Randomly selected frame: {frame_idx} (out of {skel_3d.num_frames})")
-        else:
-            frame_idx = args.frame
-            if frame_idx < 0 or frame_idx >= skel_3d.num_frames:
-                print(f"\n❌ Error: Frame index {frame_idx} out of range [0, {skel_3d.num_frames-1}]")
-                sys.exit(1)
-            print(f"📌 Using specified frame: {frame_idx} (out of {skel_3d.num_frames})")
+        frame_idx = args.frame if args.frame is not None else random.randint(0, skel_3d.num_frames - 1)
+        if frame_idx < 0 or frame_idx >= skel_3d.num_frames:
+            print(f"\n❌ Error: Frame index {frame_idx} out of range [0, {skel_3d.num_frames-1}]")
+            sys.exit(1)
+        print(f"📌 {'Randomly selected' if args.frame is None else 'Using'} frame: {frame_idx} (out of {skel_3d.num_frames})")
 
         # Visualize 3D pose
         print(f"\nGenerating 3D visualization...")
-        fig = skel_3d.visualize_3d(frame_idx, elev=args.elev, azim=args.azim)
+        fig = skel_3d.visualize_3d(
+            frame_idx,
+            figsize=tuple(args.figsize),
+            elev=args.elev,
+            azim=args.azim,
+            show_labels=args.show_labels
+        )
 
         # Save or display
-        if args.output:
-            output_path = Path(args.output)
+        output_path = args.output
+        if output_path:
             fig.savefig(output_path, dpi=150, bbox_inches='tight')
             print(f"✓ Visualization saved to: {output_path}")
             plt.close(fig)
