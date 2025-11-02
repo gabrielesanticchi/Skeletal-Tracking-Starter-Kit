@@ -413,40 +413,6 @@ for frame_idx in range(0, video.num_frames, 100):
 5. **Consistency**: Uniform interface across all data types
 6. **Extensibility**: Easy to add new methods and functionality
 
-## Migration from Old Code
-
-**Before (raw NPZ access):**
-```python
-# Load data manually
-skel_3d = np.load('data/skel_3d.npz', allow_pickle=True)
-boxes = np.load('data/boxes.npz', allow_pickle=True)
-
-# Access with dictionary keys
-sequence_skel = skel_3d['ARG_FRA_183303']
-sequence_boxes = boxes['ARG_FRA_183303']
-
-# Extract frame data manually
-frame_skel = sequence_skel[frame_idx]
-frame_boxes = sequence_boxes[frame_idx]
-
-# Filter valid boxes manually
-valid_mask = ~np.isnan(frame_boxes[:, 0])
-valid_boxes = frame_boxes[valid_mask]
-```
-
-**After (using classes):**
-```python
-# Load data with classes
-from classes import VideoMetadata
-
-video = VideoMetadata.load(Path('data'), 'ARG_FRA_183303')
-frame = video.get_frame(frame_idx)
-
-# Access data through clean API
-frame_skel = frame.get_skeleton_3d()
-valid_boxes = frame.get_bboxes(valid_only=True)
-```
-
 ## Directory Structure
 
 ```

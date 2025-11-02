@@ -107,7 +107,7 @@ class PosesData:
                 'global_orient': self.global_orient[:, frame_idx, :],
                 'body_pose': self.body_pose[:, frame_idx, :],
                 'transl': self.transl[:, frame_idx, :],
-                'betas': self.betas[:, frame_idx, :]
+                'betas': self.betas[:, :]
             }
         else:
             if subject_idx < 0 or subject_idx >= self.num_subjects:
