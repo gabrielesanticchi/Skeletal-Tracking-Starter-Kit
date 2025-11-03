@@ -17,12 +17,12 @@ skel_2d_dict = Skeleton2DData.load_all(data_dir / 'skel_2d.npz')
 sequence_name = list(skel_2d_dict.keys())[0]
 skel_2d = skel_2d_dict[sequence_name]
 
-frame_idx = 100
+frame_idx = 200
 frame_meta = ImageMetadata(sequence_name=sequence_name, frame_idx=frame_idx, skel_2d=skel_2d)
 image = frame_meta.load_image(data_dir / 'images')
 
 # Get keypoints for first subject
-kpts = skel_2d.get_frame_keypoints(frame_idx, subject_idx=0)
+kpts = skel_2d.get_frame_keypoints(frame_idx, subject_idx=13)
 
 print(f"Sequence: {sequence_name}, Frame: {frame_idx}")
 print(f"Keypoints shape: {kpts.shape}")
@@ -46,8 +46,8 @@ for joint_idx in range(len(kpts)):
     pt = tuple(pt_coords.astype(int))
 
     # Draw large circle with joint number
-    cv2.circle(img_debug, pt, 20, (0, 0, 255), -1)
-    cv2.circle(img_debug, pt, 20, (255, 255, 255), 2)
+    cv2.circle(img_debug, pt, 10, (0, 0, 255), -1)
+    # cv2.circle(img_debug, pt, 10, (255, 255, 255), 1)
 
     # Draw joint number
     cv2.putText(
@@ -55,11 +55,11 @@ for joint_idx in range(len(kpts)):
         str(joint_idx),
         (pt[0] - 10, pt[1] + 5),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
+        0.5,
         (255, 255, 255),
-        2
+        1
     )
 
-cv2.imwrite('/tmp/joint_numbers.jpg', img_debug)
+cv2.imwrite('./joint_numbers.jpg', img_debug)
 print("\n✓ Saved visualization with joint numbers to /tmp/joint_numbers.jpg")
 print("Check this image to verify which joint is which!")

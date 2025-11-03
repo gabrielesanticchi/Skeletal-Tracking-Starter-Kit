@@ -8,91 +8,106 @@ import numpy as np
 from typing import Dict, Tuple, List
 
 
-# SMPL Joint names (25 joints: 24 SMPL + nose)
+# OpenPose BODY_25 Joint names (25 joints)
+# This is the output format from 4D-Humans/PHALP after SMPL to OpenPose conversion
 JOINT_NAMES = [
-    'pelvis',          # 0
-    'left_hip',        # 1
-    'right_hip',       # 2
-    'spine1',          # 3
-    'left_knee',       # 4
-    'right_knee',      # 5
-    'spine2',          # 6
-    'left_ankle',      # 7
-    'right_ankle',     # 8
-    'spine3',          # 9
-    'left_foot',       # 10
-    'right_foot',      # 11
-    'neck',            # 12
-    'left_collar',     # 13
-    'right_collar',    # 14
-    'head',            # 15
-    'left_shoulder',   # 16
-    'right_shoulder',  # 17
-    'left_elbow',      # 18
-    'right_elbow',     # 19
-    'left_wrist',      # 20
-    'right_wrist',     # 21
-    'left_hand',       # 22
-    'right_hand',      # 23
-    'nose'             # 24 (extra joint from 4D-Humans)
+    'nose',            # 0
+    'neck',            # 1
+    'right_shoulder',  # 2
+    'right_elbow',     # 3
+    'right_wrist',     # 4
+    'left_shoulder',   # 5
+    'left_elbow',      # 6
+    'left_wrist',      # 7
+    'mid_hip',         # 8
+    'right_hip',       # 9
+    'right_knee',      # 10
+    'right_ankle',     # 11
+    'left_hip',        # 12
+    'left_knee',       # 13
+    'left_ankle',      # 14
+    'right_eye',       # 15
+    'left_eye',        # 16
+    'right_ear',       # 17
+    'left_ear',        # 18
+    'left_big_toe',    # 19
+    'left_small_toe',  # 20
+    'left_heel',       # 21
+    'right_big_toe',   # 22
+    'right_small_toe', # 23
+    'right_heel'       # 24
 ]
 
 # Color mapping for joints (BGR format for OpenCV, RGB for matplotlib)
 # Organized by body part for better visualization
 JOINT_COLORS = {
-    # Torso/Spine (Blue tones)
-    'pelvis': (255, 200, 100),      # Light blue
-    'spine1': (255, 150, 50),       # Medium blue
-    'spine2': (255, 100, 0),        # Dark blue
-    'spine3': (200, 100, 0),        # Darker blue
-    'neck': (150, 50, 0),           # Navy
-    'head': (100, 0, 0),            # Dark navy
-    'nose': (150, 100, 100),        # Purple-ish
+    # Head/Face (Purple tones)
+    'nose': (200, 150, 200),        # Light purple
+    'right_eye': (180, 120, 180),   # Medium purple
+    'left_eye': (180, 120, 180),    # Medium purple
+    'right_ear': (150, 100, 150),   # Dark purple
+    'left_ear': (150, 100, 150),    # Dark purple
+
+    # Torso/Core (Blue tones)
+    'neck': (255, 200, 100),        # Light blue
+    'mid_hip': (200, 150, 50),      # Medium blue
 
     # Left side (Green tones)
-    'left_hip': (100, 255, 100),    # Light green
-    'left_knee': (50, 200, 50),     # Medium green
-    'left_ankle': (0, 150, 0),      # Dark green
-    'left_foot': (0, 100, 0),       # Darker green
-    'left_collar': (150, 255, 150), # Very light green
-    'left_shoulder': (100, 255, 100), # Light green
-    'left_elbow': (50, 200, 50),    # Medium green
-    'left_wrist': (0, 150, 0),      # Dark green
-    'left_hand': (0, 100, 0),       # Darker green
+    'left_shoulder': (100, 255, 100),   # Light green
+    'left_elbow': (50, 200, 50),        # Medium green
+    'left_wrist': (0, 150, 0),          # Dark green
+    'left_hip': (100, 255, 100),        # Light green
+    'left_knee': (50, 200, 50),         # Medium green
+    'left_ankle': (0, 150, 0),          # Dark green
+    'left_big_toe': (0, 100, 0),        # Darker green
+    'left_small_toe': (0, 100, 0),      # Darker green
+    'left_heel': (0, 120, 0),           # Dark green
 
     # Right side (Red tones)
-    'right_hip': (100, 100, 255),   # Light red
-    'right_knee': (50, 50, 200),    # Medium red
-    'right_ankle': (0, 0, 150),     # Dark red
-    'right_foot': (0, 0, 100),      # Darker red
-    'right_collar': (150, 150, 255), # Very light red
-    'right_shoulder': (100, 100, 255), # Light red
-    'right_elbow': (50, 50, 200),   # Medium red
-    'right_wrist': (0, 0, 150),     # Dark red
-    'right_hand': (0, 0, 100),      # Darker red
+    'right_shoulder': (100, 100, 255),  # Light red
+    'right_elbow': (50, 50, 200),       # Medium red
+    'right_wrist': (0, 0, 150),         # Dark red
+    'right_hip': (100, 100, 255),       # Light red
+    'right_knee': (50, 50, 200),        # Medium red
+    'right_ankle': (0, 0, 150),         # Dark red
+    'right_big_toe': (0, 0, 100),       # Darker red
+    'right_small_toe': (0, 0, 100),     # Darker red
+    'right_heel': (0, 0, 120),          # Dark red
 }
 
-# Skeleton connections
+# Skeleton connections (OpenPose BODY_25 topology)
 SKELETON_CONNECTIONS = [
-    # Spine
-    (0, 1), (0, 2), (0, 3),         # pelvis to hips and spine1
-    (3, 6), (6, 9), (9, 12),        # spine chain
-    (12, 15),                       # neck to head
-    (12, 24),                       # neck to nose
+    # Head/Face
+    (0, 1),                         # nose to neck
+    (0, 15), (0, 16),              # nose to eyes
+    (15, 17), (16, 18),            # eyes to ears
 
-    # Left leg
-    (1, 4), (4, 7), (7, 10),        # hip -> knee -> ankle -> foot
-
-    # Right leg
-    (2, 5), (5, 8), (8, 11),        # hip -> knee -> ankle -> foot
+    # Torso
+    (1, 8),                        # neck to mid_hip
 
     # Left arm
-    (9, 13), (13, 16),              # spine3 -> collar -> shoulder
-    (16, 18), (18, 20), (20, 22),   # shoulder -> elbow -> wrist -> hand
+    (1, 5),                        # neck to left_shoulder
+    (5, 6), (6, 7),                # left_shoulder -> left_elbow -> left_wrist
 
     # Right arm
-    (9, 14), (14, 17),              # spine3 -> collar -> shoulder
-    (17, 19), (19, 21), (21, 23),   # shoulder -> elbow -> wrist -> hand
+    (1, 2),                        # neck to right_shoulder
+    (2, 3), (3, 4),                # right_shoulder -> right_elbow -> right_wrist
+
+    # Left leg
+    (8, 12),                       # mid_hip to left_hip
+    (12, 13), (13, 14),            # left_hip -> left_knee -> left_ankle
+
+    # Right leg
+    (8, 9),                        # mid_hip to right_hip
+    (9, 10), (10, 11),             # right_hip -> right_knee -> right_ankle
+
+    # Left foot
+    (14, 19), (14, 21),            # left_ankle to left_big_toe and left_heel
+    (19, 20),                      # left_big_toe to left_small_toe
+
+    # Right foot
+    (11, 22), (11, 24),            # right_ankle to right_big_toe and right_heel
+    (22, 23),                      # right_big_toe to right_small_toe
 ]
 
 
@@ -203,8 +218,8 @@ class SkeletonColorMapper:
             Dictionary mapping body parts to RGB colors (normalized)
         """
         return {
-            'Torso/Spine': (0.5, 0.5, 1.0),      # Blue
+            'Head/Face': (0.78, 0.59, 0.78),     # Purple
+            'Torso/Core': (0.39, 0.59, 1.0),     # Blue
             'Left Side': (0.0, 1.0, 0.0),        # Green
             'Right Side': (1.0, 0.0, 0.0),       # Red
-            'Head': (0.6, 0.4, 0.6),             # Purple
         }
