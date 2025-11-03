@@ -484,6 +484,234 @@ class Skeleton3DData:
 
         return fig
 
+    def animate_3d(
+        self,
+        start_frame: int = 0,
+        end_frame: Optional[int] = None,
+        frame_step: int = 1,
+        figsize: Tuple[int, int] = (15, 5),
+        elev: int = 0,
+        azim: int = -90,
+        show_labels: bool = False,
+        num_subjects: Optional[int] = None,
+        fps: int = 50,
+        duration: Optional[float] = None
+    ) -> plt.Figure:
+        """
+        Create animated 3D skeleton visualization across multiple frames.
+
+        Args:
+            start_frame: Starting frame index
+            end_frame: Ending frame index (None = last frame)
+            frame_step: Step size between frames
+            figsize: Figure size
+            elev: Elevation angle for 3D plot
+            azim: Azimuth angle for 3D plot
+            show_labels: Whether to show joint labels
+            num_subjects: Number of subjects to plot (None = all subjects)
+            fps: Frames per second for animation
+            duration: Total animation duration in seconds (overrides fps)
+
+        Returns:
+            Matplotlib figure with animation
+        """
+        from matplotlib.animation import FuncAnimation
+        
+        # Validate frame range
+        if end_frame is None:
+            end_frame = self.num_frames - 1
+        
+        start_frame = max(0, start_frame)
+        end_frame = min(self.num_frames - 1, end_frame)
+        
+        if start_frame >= end_frame:
+            raise ValueError(f"Invalid frame range: start_frame={start_frame}, end_frame={end_frame}")
+        
+        # Create frame sequence
+        frame_sequence = list(range(start_frame, end_frame + 1, frame_step))
+        
+        if not frame_sequence:
+            raise ValueError("No frames to animate")
+        
+        # Calculate animation parameters
+        if duration is not None:
+            interval = (duration * 1000) / len(frame_sequence)  # Convert to milliseconds
+        else:
+            interval = 1000 / fps  # milliseconds per frame
+        
+        # Determine valid subjects for the entire sequence
+        all_valid_subjects = set()
+        for frame_idx in frame_sequence:
+            keypoints = self.keypoints[frame_idx]
+            for subject_idx in range(self.num_subjects):
+                if not np.all(keypoints[subject_idx] == 0):
+                    all_valid_subjects.add(subject_idx)
+        
+        valid_subjects = sorted(list(all_valid_subjects))
+        
+        # Limit number of subjects if specified
+        if num_subjects is not None and num_subjects > 0:
+            valid_subjects = valid_subjects[:num_subjects]
+        
+        if not valid_subjects:
+            raise ValueError("No valid subjects found in the frame range")
+        
+        # Create figure and subplots
+        num_subjects_to_plot = len(valid_subjects)
+        fig = plt.figure(figsize=figsize)
+        
+        # Store axes and plot elements for animation
+        axes = []
+        plot_elements = []
+        
+        for plot_idx, subject_idx in enumerate(valid_subjects):
+            ax = fig.add_subplot(1, num_subjects_to_plot, plot_idx + 1, projection='3d')
+            axes.append(ax)
+            
+            # Set labels and title
+            ax.set_xlabel('X (m)')
+            ax.set_ylabel('Y (m)')
+            ax.set_zlabel('Z (m)')
+            ax.set_title(f'Subject {subject_idx}')
+            
+            # Set view angle
+            ax.view_init(elev=elev, azim=azim)
+            ax.set_box_aspect([1, 1, 1])
+            ax.grid(True, alpha=0.3)
+            
+            # Initialize empty plot elements for this subject
+            plot_elements.append({'lines': [], 'points': [], 'labels': []})
+        
+        # Calculate axis limits based on all frames
+        all_coords = []
+        for frame_idx in frame_sequence:
+            keypoints = self.keypoints[frame_idx]
+            for subject_idx in valid_subjects:
+                kpts = keypoints[subject_idx]
+                valid_kpts = kpts[~np.all(kpts == 0, axis=1)]
+                if len(valid_kpts) > 0:
+                    all_coords.extend(valid_kpts)
+        
+        if all_coords:
+            all_coords = np.array(all_coords)
+            x_min, x_max = all_coords[:, 0].min(), all_coords[:, 0].max()
+            y_min, y_max = all_coords[:, 1].min(), all_coords[:, 1].max()
+            z_min, z_max = all_coords[:, 2].min(), all_coords[:, 2].max()
+            
+            # Add some padding
+            padding = 0.1
+            x_range = x_max - x_min
+            y_range = y_max - y_min
+            z_range = z_max - z_min
+            
+            for ax in axes:
+                ax.set_xlim(x_min - padding * x_range, x_max + padding * x_range)
+                ax.set_ylim(y_min - padding * y_range, y_max + padding * y_range)
+                ax.set_zlim(z_min - padding * z_range, z_max + padding * z_range)
+        
+        color_mapper = SkeletonColorMapper()
+        
+        def animate_frame(frame_num):
+            """Animation function called for each frame."""
+            frame_idx = frame_sequence[frame_num]
+            keypoints = self.keypoints[frame_idx]
+            
+            # Clear previous frame
+            for plot_idx, (ax, subject_idx) in enumerate(zip(axes, valid_subjects)):
+                # Clear previous plots
+                for line in plot_elements[plot_idx]['lines']:
+                    line.remove()
+                for point in plot_elements[plot_idx]['points']:
+                    point.remove()
+                for label in plot_elements[plot_idx]['labels']:
+                    label.remove()
+                
+                plot_elements[plot_idx]['lines'].clear()
+                plot_elements[plot_idx]['points'].clear()
+                plot_elements[plot_idx]['labels'].clear()
+                
+                kpts = keypoints[subject_idx]
+                
+                # Skip if all keypoints are zero
+                if np.all(kpts == 0):
+                    continue
+                
+                # Draw skeleton connections
+                for joint1_idx, joint2_idx in SMPL_SKELETON_CONNECTIONS:
+                    if joint1_idx < len(kpts) and joint2_idx < len(kpts):
+                        pt1 = kpts[joint1_idx]
+                        pt2 = kpts[joint2_idx]
+                        
+                        # Skip if either point is zero
+                        if np.all(pt1 == 0) or np.all(pt2 == 0):
+                            continue
+                        
+                        conn_color = color_mapper.get_joint_color_normalized(joint1_idx, format='rgb')
+                        
+                        line = ax.plot(
+                            [pt1[0], pt2[0]],
+                            [pt1[1], pt2[1]],
+                            [pt1[2], pt2[2]],
+                            color=conn_color,
+                            linewidth=2,
+                            alpha=0.7
+                        )[0]
+                        plot_elements[plot_idx]['lines'].append(line)
+                
+                # Draw joint points
+                for joint_idx in range(len(kpts)):
+                    pt = kpts[joint_idx]
+                    
+                    # Skip if point is zero
+                    if np.all(pt == 0):
+                        continue
+                    
+                    joint_color = color_mapper.get_joint_color_normalized(joint_idx, format='rgb')
+                    
+                    point = ax.scatter(
+                        pt[0], pt[1], pt[2],
+                        c=[joint_color],
+                        s=50,
+                        edgecolors='white',
+                        linewidths=1
+                    )
+                    plot_elements[plot_idx]['points'].append(point)
+                    
+                    # Add label if requested
+                    if show_labels:
+                        label_text = color_mapper.get_joint_name(joint_idx)
+                        label = ax.text(pt[0], pt[1], pt[2], f'  {label_text}', fontsize=6)
+                        plot_elements[plot_idx]['labels'].append(label)
+            
+            # Update main title with current frame
+            fig.suptitle(f'{self.sequence_name} - Frame {frame_idx} / {end_frame}')
+            
+            return []
+        
+        # Create animation
+        anim = FuncAnimation(
+            fig,
+            animate_frame,
+            frames=len(frame_sequence),
+            interval=interval,
+            blit=False,
+            repeat=True
+        )
+        
+        # Store animation object in figure to prevent garbage collection
+        fig._animation = anim
+        
+        # Add color legend
+        legend_labels = color_mapper.get_legend_labels()
+        legend_elements = [plt.Line2D([0], [0], marker='o', color='w',
+                                      markerfacecolor=color, markersize=8, label=label)
+                          for label, color in legend_labels.items()]
+        fig.legend(handles=legend_elements, loc='upper right', framealpha=0.9)
+        
+        plt.tight_layout()
+        
+        return fig
+
     def __repr__(self) -> str:
         """String representation."""
         return (f"Skeleton3DData(sequence='{self.sequence_name}', "

@@ -74,8 +74,8 @@ class ArgsParser:
         parser.add_argument(
             '--elev',
             type=int,
-            default=-90,
-            help='Elevation angle for 3D plot (default: -90)'
+            default=0,
+            help='Elevation angle for 3D plot (default: 0)'
         )
 
         parser.add_argument(
@@ -98,6 +98,54 @@ class ArgsParser:
             type=int,
             default=None,
             help='Number of subjects to plot (default: None, plots all subjects)'
+        )
+
+        return parser
+
+    @staticmethod
+    def add_animation_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+        """
+        Add animation specific arguments.
+
+        Args:
+            parser: Existing argument parser
+
+        Returns:
+            Parser with animation arguments added
+        """
+        parser.add_argument(
+            '--start-frame',
+            type=int,
+            default=0,
+            help='Starting frame for animation (default: 0)'
+        )
+
+        parser.add_argument(
+            '--end-frame',
+            type=int,
+            default=None,
+            help='Ending frame for animation (default: None, uses last frame)'
+        )
+
+        parser.add_argument(
+            '--frame-step',
+            type=int,
+            default=1,
+            help='Frame step size for animation (default: 1)'
+        )
+
+        parser.add_argument(
+            '--fps',
+            type=int,
+            default=10,
+            help='Frames per second for animation (default: 10)'
+        )
+
+        parser.add_argument(
+            '--duration',
+            type=float,
+            default=None,
+            help='Animation duration in seconds (overrides fps if specified)'
         )
 
         return parser
