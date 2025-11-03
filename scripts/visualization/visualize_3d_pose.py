@@ -22,6 +22,9 @@ Usage:
 
     # Custom view angles
     python scripts/visualization/visualize_3d_pose.py --elev 30 --azim -45
+
+    # Limit to first 2 subjects
+    python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303 --frame 100 --num-subjects 2
 """
 
 import sys
@@ -85,12 +88,15 @@ def main():
 
         # Visualize 3D pose
         print(f"\nGenerating 3D visualization...")
+        if args.num_subjects is not None:
+            print(f"📌 Limiting to {args.num_subjects} subjects")
         fig = skel_3d.visualize_3d(
             frame_idx,
             figsize=tuple(args.figsize),
             elev=args.elev,
             azim=args.azim,
-            show_labels=args.show_labels
+            show_labels=args.show_labels,
+            num_subjects=args.num_subjects
         )
 
         # Save or display

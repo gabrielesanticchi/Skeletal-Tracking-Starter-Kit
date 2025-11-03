@@ -137,7 +137,8 @@ class Skeleton2DData:
         frame_idx: int,
         show_skeleton: bool = True,
         show_joints: bool = True,
-        show_labels: bool = False
+        show_labels: bool = False,
+        num_subjects: Optional[int] = None
     ) -> np.ndarray:
         """
         Visualize 2D skeleton on an image with color-coded joints.
@@ -148,6 +149,7 @@ class Skeleton2DData:
             show_skeleton: Whether to draw skeleton connections
             show_joints: Whether to draw joint points
             show_labels: Whether to show joint labels
+            num_subjects: Number of subjects to plot (None = all subjects)
 
         Returns:
             Image with skeleton drawn
@@ -156,8 +158,18 @@ class Skeleton2DData:
         img_display = image.copy()
         keypoints = self.keypoints[frame_idx]
 
+        # Determine which subjects to draw
+        subjects_to_draw = list(range(self.num_subjects))
+        if num_subjects is not None and num_subjects > 0:
+            # Filter out invalid subjects first, then limit
+            valid_subjects = []
+            for subject_idx in range(self.num_subjects):
+                if not np.all(keypoints[subject_idx] == 0):
+                    valid_subjects.append(subject_idx)
+            subjects_to_draw = valid_subjects[:num_subjects]
+        
         # Draw skeleton for each subject
-        for subject_idx in range(self.num_subjects):
+        for subject_idx in subjects_to_draw:
             kpts = keypoints[subject_idx]
 
             # Skip if all keypoints are zero (invalid subject)
@@ -352,9 +364,10 @@ class Skeleton3DData:
         self,
         frame_idx: int,
         figsize: Tuple[int, int] = (15, 5),
-        elev: int = 20,
-        azim: int = -60,
-        show_labels: bool = False
+        elev: int = 0,
+        azim: int = -90,
+        show_labels: bool = False,
+        num_subjects: Optional[int] = None
     ) -> plt.Figure:
         """
         Visualize 3D skeleton in 3D space with color-coded joints.
@@ -365,6 +378,7 @@ class Skeleton3DData:
             elev: Elevation angle for 3D plot
             azim: Azimuth angle for 3D plot
             show_labels: Whether to show joint labels
+            num_subjects: Number of subjects to plot (None = all subjects)
 
         Returns:
             Matplotlib figure
@@ -381,12 +395,16 @@ class Skeleton3DData:
         if not valid_subjects:
             raise ValueError(f"No valid subjects in frame {frame_idx}")
 
+        # Limit number of subjects if specified
+        if num_subjects is not None and num_subjects > 0:
+            valid_subjects = valid_subjects[:num_subjects]
+
         # Create subplots
-        num_subjects = len(valid_subjects)
+        num_subjects_to_plot = len(valid_subjects)
         fig = plt.figure(figsize=figsize)
 
         for plot_idx, subject_idx in enumerate(valid_subjects):
-            ax = fig.add_subplot(1, num_subjects, plot_idx + 1, projection='3d')
+            ax = fig.add_subplot(1, num_subjects_to_plot, plot_idx + 1, projection='3d')
 
             kpts = keypoints[subject_idx]
 
@@ -447,6 +465,8 @@ class Skeleton3DData:
 
             # Set aspect ratio
             ax.set_box_aspect([1, 1, 1])
+            # Set data aspect ratio equal to the axis aspect ratio
+            ax.set_aspect('equal', 'box')
 
             # Add grid
             ax.grid(True, alpha=0.3)

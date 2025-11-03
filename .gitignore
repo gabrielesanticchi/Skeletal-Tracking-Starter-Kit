@@ -34,3 +34,6 @@ data/images/
 data/videos/
 data/poses/
 data/cameras/__pycache__/
+
+# Source 
+src/ignore/*

@@ -19,6 +19,9 @@ Usage:
 
     # Show joint labels
     python scripts/visualization/visualize_2d_pose.py --sequence ARG_FRA_183303 --frame 100 --show-labels
+
+    # Limit to first 2 subjects
+    python scripts/visualization/visualize_2d_pose.py --sequence ARG_FRA_183303 --frame 100 --num-subjects 2
 """
 
 import sys
@@ -82,12 +85,15 @@ def main():
 
         # Visualize 2D skeleton
         print(f"\nGenerating 2D visualization...")
+        if args.num_subjects is not None:
+            print(f"📌 Limiting to {args.num_subjects} subjects")
         img_with_skeleton = skel_2d.visualize_frame(
             image,
             frame_idx,
             show_skeleton=args.show_skeleton,
             show_joints=args.show_joints,
-            show_labels=args.show_labels
+            show_labels=args.show_labels,
+            num_subjects=args.num_subjects
         )
 
         # Save or display

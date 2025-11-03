@@ -74,15 +74,15 @@ class ArgsParser:
         parser.add_argument(
             '--elev',
             type=int,
-            default=20,
-            help='Elevation angle for 3D plot (default: 20)'
+            default=-90,
+            help='Elevation angle for 3D plot (default: -90)'
         )
 
         parser.add_argument(
             '--azim',
             type=int,
-            default=-60,
-            help='Azimuth angle for 3D plot (default: -60)'
+            default=-90,
+            help='Azimuth angle for 3D plot (default: -90)'
         )
 
         parser.add_argument(
@@ -91,6 +91,13 @@ class ArgsParser:
             nargs=2,
             default=[15, 5],
             help='Figure size (width height) (default: 15 5)'
+        )
+
+        parser.add_argument(
+            '--num-subjects',
+            type=int,
+            default=None,
+            help='Number of subjects to plot (default: None, plots all subjects)'
         )
 
         return parser
@@ -125,6 +132,13 @@ class ArgsParser:
             action='store_true',
             default=False,
             help='Show joint labels (default: False)'
+        )
+
+        parser.add_argument(
+            '--num-subjects',
+            type=int,
+            default=None,
+            help='Number of subjects to plot (default: None, plots all subjects)'
         )
 
         return parser
