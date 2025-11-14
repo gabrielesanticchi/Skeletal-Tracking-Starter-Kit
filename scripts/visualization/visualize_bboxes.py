@@ -35,6 +35,12 @@ def main():
     parser = ArgsParser.create_base_parser(
         "Visualize bounding boxes on images from FIFA Skeletal Tracking Challenge"
     )
+    parser.add_argument(
+        '--boxes-file',
+        type=str,
+        default='boxes.npz',
+        help='Bounding boxes file to use (default: boxes.npz, can use boxes_all.npz for SMPL-generated)'
+    )
     args = parser.parse_args()
 
     # Get data directory
@@ -47,7 +53,7 @@ def main():
     try:
         # Load bounding box data
         print("Loading bounding box data...")
-        boxes_path = data_dir / "boxes.npz"
+        boxes_path = data_dir / args.boxes_file
         boxes_dict = BBoxesData.load_all(boxes_path)
         sequences = list(boxes_dict.keys())
         print(f"✓ Loaded {len(sequences)} sequences with bounding boxes")

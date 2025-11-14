@@ -14,8 +14,8 @@ Usage:
     # Specific frame range
     python scripts/visualization/animate_3d_pose.py --sequence ARG_FRA_183303 --start-frame 50 --end-frame 150
 
-    # Save animation as MP4
-    python scripts/visualization/animate_3d_pose.py --output animation_3d.mp4
+    # Save animation as MP4 with precise FPS (recommended for video sync)
+    python scripts/visualization/animate_3d_pose.py --output animation_3d.mp4 --fps 50 --num-subjects 2 
 
     # Show joint labels
     python scripts/visualization/animate_3d_pose.py --sequence ARG_FRA_183303 --show-labels
@@ -28,6 +28,9 @@ Usage:
 
     # Skip frames for faster animation
     python scripts/visualization/animate_3d_pose.py --sequence ARG_FRA_183303 --frame-step 2 --fps 20
+
+    # High FPS for video synchronization (50 fps MP4)
+    python scripts/visualization/animate_3d_pose.py --sequence ARG_FRA_183303 --fps 50 --output sync_animation.mp4
 """
 
 import sys
@@ -137,25 +140,41 @@ def main():
             # Determine writer based on file extension
             if output_path.lower().endswith('.gif'):
                 writer = 'pillow'
-                print("📝 Using GIF format")
+                writer_fps = args.fps
+                print(f"📝 Using GIF format at {writer_fps} fps")
             elif output_path.lower().endswith('.mp4'):
                 writer = 'ffmpeg'
-                print("📝 Using MP4 format (requires ffmpeg)")
+                writer_fps = args.fps
+                print(f"📝 Using MP4 format at {writer_fps} fps (requires ffmpeg)")
             else:
                 writer = 'ffmpeg'
-                print("📝 Using default MP4 format")
+                writer_fps = args.fps
+                output_path = output_path + '.mp4' if not output_path.lower().endswith(('.mp4', '.gif')) else output_path
+                print(f"📝 Using default MP4 format at {writer_fps} fps")
             
             try:
-                fig._animation.save(output_path, writer=writer, fps=args.fps)
-                print(f"✓ Animation saved successfully!")
+                # For MP4, use additional parameters to ensure precise FPS
+                if writer == 'ffmpeg':
+                    # Use extra_args to ensure precise frame rate
+                    extra_args = ['-r', str(writer_fps), '-vcodec', 'libx264', '-pix_fmt', 'yuv420p']
+                    fig._animation.save(output_path, writer=writer, fps=writer_fps, extra_args=extra_args)
+                else:
+                    fig._animation.save(output_path, writer=writer, fps=writer_fps)
+                
+                print(f"✓ Animation saved successfully at {writer_fps} fps!")
+                print(f"📁 File: {output_path}")
             except Exception as e:
                 print(f"❌ Error saving animation: {e}")
                 print("💡 Try installing ffmpeg for MP4 or use .gif extension")
+                print("💡 For Ubuntu/Debian: sudo apt install ffmpeg")
+                print("💡 For macOS: brew install ffmpeg")
                 sys.exit(1)
             
             plt.close(fig)
         else:
             print(f"\n✓ Displaying animation")
+            print("⚠️  Note: Interactive display FPS may not be exact")
+            print("💡 For precise FPS control, save as MP4: --output animation.mp4")
             print("Close the window to exit...")
             plt.show()
 

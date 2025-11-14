@@ -137,8 +137,8 @@ class ArgsParser:
         parser.add_argument(
             '--fps',
             type=int,
-            default=10,
-            help='Frames per second for animation (default: 10)'
+            default=50,
+            help='Frames per second for animation (default: 50)'
         )
 
         parser.add_argument(

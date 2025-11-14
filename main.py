@@ -5,8 +5,10 @@ Author: Tianjian Jiang
 Date: March 16, 2025
 """
 from pathlib import Path
+from typing import Any
 import numpy as np
 import cv2
+import os
 import scipy.optimize
 import torch
 import torch.optim as optim
@@ -382,12 +384,12 @@ def fine_tune_translation(predictions, skels_2d, cameras, Rt, boxes):
     camera_params["C"] = -(camera_params["t"][..., None, :] @ camera_params["R"]).squeeze(axis=-2)
     valid = ~np.isnan(boxes).any(axis=-1).transpose(1, 0)
     traj_3d = minimize_reprojection_error(
-        pts_3d=torch.tensor(mid_hip_3d[valid], dtype=torch.float32).to("cuda"),
-        pts_2d=torch.tensor(mid_hip_2d[valid], dtype=torch.float32).to("cuda"),
-        R=torch.tensor(camera_params["R"][valid], dtype=torch.float32).to("cuda"),
-        C=torch.tensor(camera_params["C"][valid], dtype=torch.float32).to("cuda"),
-        K=torch.tensor(camera_params["K"][valid], dtype=torch.float32).to("cuda"),
-        k=torch.tensor(camera_params["k"][valid], dtype=torch.float32).to("cuda"),
+        pts_3d=torch.tensor(mid_hip_3d[valid], dtype=torch.float32),
+        pts_2d=torch.tensor(mid_hip_2d[valid], dtype=torch.float32),
+        R=torch.tensor(camera_params["R"][valid], dtype=torch.float32),
+        C=torch.tensor(camera_params["C"][valid], dtype=torch.float32),
+        K=torch.tensor(camera_params["K"][valid], dtype=torch.float32),
+        k=torch.tensor(camera_params["k"][valid], dtype=torch.float32),
     )
     return traj_3d, valid
 
@@ -463,7 +465,10 @@ def main(root):
     skels_2d = np.load(root / "skel_2d.npz")
     skels_3d = np.load(root / "skel_3d.npz")
     boxes = np.load(root / "boxes.npz")
-    for cam_path in root.glob("cameras/*.npz"):
+    cam_paths = sorted(root.glob("cameras/*.npz"))
+    # Exlucing the extension ".xxx", find common file name with skels_3d data
+    common_files = set[any]([cam_path.stem for cam_path in cam_paths]).intersection(set[any](skels_3d.files))
+    for cam_path in cam_paths:
         sequence_name = cam_path.stem
         img_dir = root / "images" / sequence_name
         cam = dict(np.load(cam_path))
