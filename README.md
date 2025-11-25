@@ -60,9 +60,9 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 | Subset | Videos | Cameras | Bounding Boxes | SMPL Poses (Raw) | 2D/3D Poses (Processed) | Purpose |
 |--------|--------|---------|----------------|------------------|------------------------|---------|
 | **TRAIN_DATA** | 89 | ✓ | ✗ | ✓ | ✗ | Training - requires preprocessing |
-| **TEST_DATA** | 8 | ✗ | ✓ (7/8) | ✓ | ✓ (7/8) | Validation with ground truth |
-| **CHALLENGE_DATA** | 7 | ✗ | ✓ (6/7) | ✓ | ✓ (6/7) | Final evaluation |
-| **TOTAL** | **104** | **89** | **13** | **All 104** | **13** | |
+| **TEST_DATA** | 8 | ✗ | ✗ | ✗ | ✗ |✗ |
+| **CHALLENGE_DATA** | 7 | ✗ | ✗ | ✗ | ✗ | Final evaluation |
+| **TOTAL** | **104** | **89** | **13** | **89** | **13** | |
 
 ### Data Availability Details
 
@@ -90,9 +90,6 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 **What you have:**
 - ✓ Videos (`.mp4` files)
 - ✓ SMPL poses (all 8 sequences in `data/poses/`)
-- ✓ Bounding boxes (7 sequences in `data/boxes.npz`)
-- ✓ 2D skeletal keypoints (7 sequences, pre-generated in `data/skel_2d.npz`)
-- ✓ 3D skeletal keypoints (7 sequences, pre-generated in `data/skel_3d.npz`)
 
 **What you DON'T have:**
 - ✗ Camera parameters (except first frame - you must track camera pose)
