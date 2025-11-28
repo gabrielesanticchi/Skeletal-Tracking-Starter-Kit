@@ -1,13 +1,5 @@
 # FIFA Skeletal Tracking Starter Kit
 
-This repository provides a **naïve baseline** for the **FIFA Skeletal Tracking Challenge**. It includes a simple, fully documented implementation to help participants get started with 3D pose estimation using bounding boxes, skeletal data, and camera parameters.
-
-## 📌 Features
-- **Baseline Implementation**: A simple approach for 3D skeletal tracking.
-- **Camera Pose Estimation**: Computes camera transformations from bounding box correspondences.
-- **Field Markings Refinement**: Improves camera rotation using detected Field Markings.
-- **Pose Projection & Optimization**: Projects 3D skeletons onto 2D images and refines translation via optimization.
-
 ## 🚀 Getting Started
 
 ### 📦 Installation
@@ -27,8 +19,6 @@ Skeletal-Tracking-Starter-Kit/
 │   ├── poses/                      # SMPL pose parameters
 │   ├── images/                     # Extracted frames
 │   ├── boxes.npz                   # Bounding boxes
-│   ├── skel_2d.npz                 # 2D skeletal keypoints
-│   └── skel_3d.npz                 # 3D skeletal keypoints
 ├── src/                            # Source code
 │   ├── classes/                    # Core OOP classes
 │   │   ├── poses.py                # PosesData class
@@ -59,10 +49,10 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 
 | Subset | Videos | Cameras | Bounding Boxes | SMPL Poses (Raw) | 2D/3D Poses (Processed) | Purpose |
 |--------|--------|---------|----------------|------------------|------------------------|---------|
-| **TRAIN_DATA** | 89 | ✓ | ✗ | ✓ | ✗ | Training - requires preprocessing |
-| **TEST_DATA** | 8 | ✗ | ✗ | ✗ | ✗ |✗ |
-| **CHALLENGE_DATA** | 7 | ✗ | ✗ | ✗ | ✗ | Final evaluation |
-| **TOTAL** | **104** | **89** | **13** | **89** | **13** | |
+| **TRAIN_DATA** | 89 | ✓ (89) | ✗ | ✓ (89) | ✗ | Training - requires preprocessing |
+| **TEST_DATA** | 8 | ✓ (7) | ✓ (7) | ✗ | ✗ | Validation |
+| **CHALLENGE_DATA** | 7 | ✓ (6) | ✓ (6) | ✗ | ✗ | Final evaluation |
+| **TOTAL** | **104** | **102** | **13** | **89** | **13** | |
 
 ### Data Availability Details
 
@@ -86,14 +76,15 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 
 **Example sequences:** `ARG_CRO_220001`, `ARG_FRA_182345`, `BRA_CRO_210113`, etc.
 
-#### 2. **TEST_DATA (8 sequences, 7 with annotations)**
+#### 2. **TEST_DATA (8 sequences, 7 with full annotations)**
 **What you have:**
 - ✓ Videos (`.mp4` files)
-- ✓ SMPL poses (all 8 sequences in `data/poses/`)
+- ✓ Camera parameters (7 sequences - missing [`NET_ARG_003203`](data/cameras/NET_ARG_003203.npz))
+- ✓ Bounding boxes (7 sequences in [`boxes.npz`](results/boxes.npz) - missing [`NET_ARG_003203`](results/boxes.npz))
 
 **What you DON'T have:**
-- ✗ Camera parameters (except first frame - you must track camera pose)
-- ✗ Bounding boxes for 1 sequence (can be generated from SMPL)
+- ✗ SMPL poses (NOT included in training data)
+- ✗ 2D/3D skeletal keypoints (processed)
 
 **Available sequences:**
 - ✓ `ARG_CRO_000737` - 1042 frames, 21 subjects
@@ -103,29 +94,30 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 - ✓ `ENG_FRA_223104` - 1878 frames, 23 subjects
 - ✓ `FRA_MOR_220726` - 2149 frames, 23 subjects
 - ✓ `MOR_POR_180940` - 1800 frames, 23 subjects
-- ✗ `NET_ARG_003203` - No annotations
+- ✗ `NET_ARG_003203` - No camera parameters or bounding boxes
 
 **How to use:**
 - Validate your approach on these sequences
 - Compare your predictions against ground truth
 - Develop camera tracking algorithms
 
-#### 3. **CHALLENGE_DATA (7 sequences, 6 with annotations)**
+#### 3. **CHALLENGE_DATA (7 sequences, 6 with full annotations)**
 **What you have:**
 - ✓ Videos (`.mp4` files)
-- ✓ SMPL poses (all 7 sequences in `data/poses/`)
-- ✓ Bounding boxes (6 sequences in `data/boxes.npz`)
-- ✓ 2D skeletal keypoints (6 sequences, pre-generated in `data/skel_2d.npz`)
-- ✓ 3D skeletal keypoints (6 sequences, pre-generated in `data/skel_3d.npz`)
+- ✓ Camera parameters (6 sequences - missing [`CRO_MOR_182145`](data/cameras/CRO_MOR_182145.npz))
+- ✓ Bounding boxes (6 sequences in [`boxes.npz`](results/boxes.npz) - missing [`CRO_MOR_182145`](results/boxes.npz))
+- ✓ 2D skeletal keypoints (6 sequences, pre-generated in [`skel_2d.npz`](results/skel_2d.npz))
+- ✓ 3D skeletal keypoints (6 sequences, pre-generated in [`skel_3d.npz`](results/skel_3d.npz))
 
 **What you DON'T have:**
-- ✗ Camera parameters (must be estimated)
-- ✗ Bounding boxes for 1 sequence (can be generated from SMPL)
+- ✗ SMPL poses (NOT included in training data)
+- ✗ Camera parameters for [`CRO_MOR_182145`](data/cameras/CRO_MOR_182145.npz) (must be estimated)
+- ✗ Bounding boxes for [`CRO_MOR_182145`](results/boxes.npz) (can be generated from SMPL if poses were available)
 
 **Available sequences:**
 - ✓ `ARG_CRO_225412` - 569 frames, 21 subjects
 - ✓ `ARG_FRA_184210` - 987 frames, 23 subjects
-- ✗ `CRO_MOR_182145` - No annotations
+- ✗ `CRO_MOR_182145` - No camera parameters or bounding boxes
 - ✓ `ENG_FRA_231427` - 1060 frames, 22 subjects
 - ✓ `MOR_POR_184642` - 968 frames, 23 subjects
 - ✓ `MOR_POR_193202` - 685 frames, 19 subjects
@@ -153,7 +145,7 @@ Each file contains per-frame camera intrinsics and first-frame extrinsics:
 **Important:** You must estimate camera poses (R, t) for frames 2 onwards.
 
 #### SMPL Poses (`data/poses/<sequence>.npz`)
-Contains raw SMPL parameters for **all 104 sequences** (train + test + challenge):
+Contains raw SMPL parameters for **89 training sequences only** (NOT available for test/challenge):
 
 ```python
 {
@@ -164,13 +156,14 @@ Contains raw SMPL parameters for **all 104 sequences** (train + test + challenge
 }
 ```
 
-**Note:** These are SMPL model parameters from WorldPose dataset. You can:
-- Project SMPL meshes to generate bounding boxes for all sequences
-- Use SMPL parameters for pose estimation and tracking
-- Generate 2D/3D keypoints using SMPL joint locations
+**Note:** These are SMPL model parameters from WorldPose dataset for training sequences only. You can:
+- Project SMPL meshes to generate bounding boxes for training sequences
+- Use SMPL parameters for pose estimation and tracking on training data
+- Generate 2D/3D keypoints using SMPL joint locations for training
+- **Test and challenge sequences do NOT have SMPL poses available**
 
 #### Bounding Boxes (`data/boxes.npz`)
-Contains bounding boxes for **13 sequences** (test + challenge data):
+Contains bounding boxes for **13 sequences** (7 test + 6 challenge sequences):
 
 ```python
 {
@@ -180,10 +173,10 @@ Contains bounding boxes for **13 sequences** (test + challenge data):
 }
 ```
 
-**Note:** Bounding boxes can be generated for all sequences by projecting SMPL meshes (see `scripts/preprocessing/generate_boxes_from_smpl.py`).
+**Note:** Bounding boxes can be generated for training sequences by projecting SMPL meshes (see [`scripts/preprocessing/generate_boxes_from_smpl.py`](scripts/preprocessing/generate_boxes_from_smpl.py)). Missing sequences: [`NET_ARG_003203`](results/boxes.npz) and [`CRO_MOR_182145`](results/boxes.npz).
 
 #### 2D Poses (`data/skel_2d.npz`)
-Contains 2D skeletal keypoints (25 joints from 4D-Humans = SMPL 24 + nose):
+Contains 2D skeletal keypoints for **13 sequences** (25 joints from 4D-Humans = SMPL 24 + nose):
 
 ```python
 {
@@ -193,7 +186,7 @@ Contains 2D skeletal keypoints (25 joints from 4D-Humans = SMPL 24 + nose):
 ```
 
 #### 3D Poses (`data/skel_3d.npz`)
-Contains 3D skeletal keypoints (25 joints from 4D-Humans):
+Contains 3D skeletal keypoints for **13 sequences** (25 joints from 4D-Humans):
 
 ```python
 {
@@ -203,26 +196,6 @@ Contains 3D skeletal keypoints (25 joints from 4D-Humans):
 ```
 
 **Joint structure:** See [SMPL joint mapping](#smpl-joint-mapping) below.
-
-### What Can You Do With Each Subset?
-
-#### Training Workflow (TRAIN_DATA):
-1. Extract frames: `python scripts/preprocessing/extract_frames.py`
-2. Generate poses: `python preprocess.py` (requires 4D-Humans setup)
-3. Train your camera tracking models
-4. Train your pose estimation models
-
-#### Validation Workflow (TEST_DATA):
-1. Visualize bounding boxes: `python scripts/visualization/visualize_bboxes.py --sequence ARG_FRA_183303`
-2. Visualize 3D poses: `python scripts/visualization/visualize_3d_pose.py --sequence ARG_FRA_183303`
-3. Run baseline: `python baseline.py`
-4. Validate your approach against provided ground truth
-
-#### Submission Workflow (CHALLENGE_DATA):
-1. Run your model on challenge sequences
-2. Generate predictions in submission format (15 joints)
-3. Prepare submission: `python prepare-submission.py -i your-solution.npz`
-4. Submit to Kaggle
 
 ### SMPL Joint Mapping
 
@@ -245,7 +218,7 @@ data/
 │   ├── train_data/          # 89 training videos
 │   ├── test_data/           # 8 validation videos
 │   └── challenge_data/      # 7 challenge videos
-├── cameras/                 # 89 camera parameter files (train only)
+├── cameras/                 # 102 camera parameter files (89 train + 7 test + 6 challenge)
 │   ├── ARG_CRO_220001.npz
 │   ├── ARG_FRA_182345.npz
 │   └── ...
