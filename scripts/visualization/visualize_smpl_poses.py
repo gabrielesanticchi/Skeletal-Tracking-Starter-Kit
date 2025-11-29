@@ -47,12 +47,65 @@ import sys
 import random
 import matplotlib.pyplot as plt
 from pathlib import Path
+import cv2
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
 
 from classes import PosesData
 from utils import ArgsParser
+
+
+def calculate_sync_fps(sequence_name: str, pose_frames: int, data_dir: Path) -> float:
+    """
+    Calculate the correct FPS for pose animation to match video duration.
+    
+    Args:
+        sequence_name: Name of the sequence
+        pose_frames: Number of pose frames
+        data_dir: Data directory path
+        
+    Returns:
+        Calculated FPS for synchronization
+    """
+    # Find video file
+    video_file = None
+    for subset in ['train_data', 'test_data', 'challenge_data']:
+        potential_path = data_dir / 'videos' / subset / f'{sequence_name}.mp4'
+        if potential_path.exists():
+            video_file = potential_path
+            break
+    
+    if not video_file:
+        print(f"⚠️  Warning: Video file not found for {sequence_name}, using default FPS")
+        return 25.0  # Default fallback
+    
+    # Get video properties
+    cap = cv2.VideoCapture(str(video_file))
+    if not cap.isOpened():
+        print(f"⚠️  Warning: Could not open video {video_file}, using default FPS")
+        return 25.0
+    
+    video_fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    
+    if video_fps <= 0 or frame_count <= 0:
+        print(f"⚠️  Warning: Invalid video properties, using default FPS")
+        return 25.0
+    
+    # Calculate video duration
+    video_duration = frame_count / video_fps
+    
+    # Calculate required FPS for pose animation
+    sync_fps = pose_frames / video_duration
+    
+    print(f"📊 Video analysis:")
+    print(f"   Video: {frame_count} frames @ {video_fps:.1f} fps = {video_duration:.1f}s")
+    print(f"   Poses: {pose_frames} frames")
+    print(f"   Sync FPS: {sync_fps:.2f} fps (for {video_duration:.1f}s duration)")
+    
+    return sync_fps
 
 
 def main():
@@ -199,12 +252,25 @@ def main():
             if args.animate_pitch:
                 # Generate animated pitch tracking
                 print(f"\nGenerating animated pitch tracking...")
+                
+                # Calculate synchronized FPS if not overridden by duration
+                total_frames = len(range(start_frame, end_frame + 1, args.frame_step))
                 if args.duration:
-                    print(f"📌 Animation duration: {args.duration:.1f}s")
+                    actual_fps = total_frames / args.duration
+                    print(f"📌 Animation duration: {args.duration:.1f}s ({actual_fps:.1f} fps)")
+                    sync_fps = actual_fps
                 else:
-                    total_frames = len(range(start_frame, end_frame + 1, args.frame_step))
-                    duration = total_frames / args.fps
-                    print(f"📌 Animation settings: {args.fps} fps, ~{duration:.1f}s duration")
+                    # Calculate FPS for video synchronization
+                    sync_fps = calculate_sync_fps(sequence_name, total_frames, data_dir)
+                    duration = total_frames / sync_fps
+                    print(f"📌 Animation settings: {sync_fps:.2f} fps (sync), ~{duration:.1f}s duration")
+                    
+                    # Allow manual FPS override
+                    if args.fps != 50.0:  # User specified different FPS
+                        print(f"📌 Manual FPS override: {args.fps} fps")
+                        sync_fps = args.fps
+                        duration = total_frames / sync_fps
+                        print(f"📌 Updated duration: ~{duration:.1f}s")
                 
                 print(f"📌 Trail length: {args.trail_length} positions")
                 
@@ -214,7 +280,7 @@ def main():
                     frame_step=args.frame_step,
                     figsize=tuple(args.figsize),
                     num_subjects=args.num_subjects,
-                    fps=args.fps,
+                    fps=sync_fps,
                     duration=args.duration,
                     trail_length=args.trail_length,
                     show_pitch=args.show_pitch and not args.no_pitch
@@ -267,17 +333,17 @@ def main():
                 # Determine writer based on file extension
                 if output_path.lower().endswith('.gif'):
                     writer = 'pillow'
-                    writer_fps = args.fps
-                    print(f"📝 Using GIF format at {writer_fps} fps")
+                    writer_fps = sync_fps
+                    print(f"📝 Using GIF format at {writer_fps:.2f} fps")
                 elif output_path.lower().endswith('.mp4'):
                     writer = 'ffmpeg'
-                    writer_fps = args.fps
-                    print(f"📝 Using MP4 format at {writer_fps} fps (requires ffmpeg)")
+                    writer_fps = sync_fps
+                    print(f"📝 Using MP4 format at {writer_fps:.2f} fps (requires ffmpeg)")
                 else:
                     writer = 'ffmpeg'
-                    writer_fps = args.fps
+                    writer_fps = sync_fps
                     output_path = output_path + '.mp4' if not output_path.lower().endswith(('.mp4', '.gif')) else output_path
-                    print(f"📝 Using default MP4 format at {writer_fps} fps")
+                    print(f"📝 Using default MP4 format at {writer_fps:.2f} fps")
                 
                 try:
                     # For MP4, use additional parameters to ensure precise FPS
@@ -287,7 +353,7 @@ def main():
                     else:
                         fig._animation.save(output_path, writer=writer, fps=writer_fps)
                     
-                    print(f"✓ Animation saved successfully at {writer_fps} fps!")
+                    print(f"✓ Animation saved successfully at {writer_fps:.2f} fps!")
                     print(f"📁 File: {output_path}")
                 except Exception as e:
                     print(f"❌ Error saving animation: {e}")

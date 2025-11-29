@@ -28,6 +28,7 @@
 
 # Virtual environment
 .venv/
+.venv_gui/
 venv/
 env/
 

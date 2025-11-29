@@ -19,6 +19,11 @@ Skeletal-Tracking-Starter-Kit/
 │   ├── poses/                      # SMPL pose parameters
 │   ├── images/                     # Extracted frames
 │   ├── boxes.npz                   # Bounding boxes
+├── gui/                            # PyQt GUI application
+│   ├── main.py                     # Main GUI application
+│   ├── widgets/                    # GUI widgets
+│   ├── utils/                      # GUI utilities
+│   └── README.md                   # GUI documentation
 ├── src/                            # Source code
 │   ├── classes/                    # Core OOP classes
 │   │   ├── poses.py                # PosesData class
@@ -37,9 +42,32 @@ Skeletal-Tracking-Starter-Kit/
 │   ├── preprocessing/              # Data preprocessing
 │   ├── visualization/              # Visualization tools
 │   └── evaluation/                 # Evaluation scripts
+├── results/                        # Generated results
+│   └── SMPL/                       # Animation files
 ├── baseline.py                     # Baseline implementation
+├── GUI_QUICK_START.md              # GUI quick start guide
 └── README.md                       # This file
 ```
+
+## 🖥️ PyQt GUI Viewer
+
+A synchronized video viewer for quality checking preprocessing scripts:
+
+```bash
+# Activate GUI environment
+source .venv_gui/bin/activate
+
+# Run viewer
+python gui/main.py --sequence ARG_CRO_220001
+```
+
+Features:
+- **Synchronized Display**: Original video, 3D poses, and pitch tracking in sync
+- **Full Sequence Support**: Visualize all 22 players across complete clips
+- **Playback Controls**: Play/pause, seek, step-by-step navigation, speed control
+- **Keyboard Shortcuts**: Space (play/pause), arrows (navigate), F (fullscreen)
+
+For details, see [GUI_QUICK_START.md](GUI_QUICK_START.md) and [gui/README.md](gui/README.md).
 
 ## 📂 Dataset Overview
 
@@ -126,6 +154,32 @@ The FIFA Skeletal Tracking Challenge dataset is divided into **three subsets** w
 **How to use:**
 - Final evaluation sequences
 - Submit predictions for these sequences
+
+### Video Specifications
+
+All videos in the FIFA Skeletal Tracking dataset have consistent technical specifications:
+
+- **Frame Rate**: 50 FPS (frames per second)
+- **Resolution**: 1920x1080 (Full HD)
+- **Format**: MP4
+- **Duration Range**: 11-60 seconds (varies by sequence)
+- **Frame Count Range**: 569-3000+ frames (varies by sequence)
+
+**Important for Data Understanding:**
+- SMPL pose data has **frame-by-frame** information matching video frame count
+- Data structure: `(num_subjects, num_frames, dimensions)` where subjects = ~20-25 players
+- Pose animations automatically sync at 50 FPS to match video duration
+- Example: 949 pose frames over 18.98s video = 50 FPS (perfect sync)
+
+Use [`scripts/preprocessing/analyze_video_fps.py`](scripts/preprocessing/analyze_video_fps.py) to analyze specific sequences:
+
+```bash
+# Check video/pose consistency for a sequence
+python scripts/preprocessing/analyze_video_fps.py --check-sequence ARG_FRA_180702
+
+# Analyze all videos (sample)
+python scripts/preprocessing/analyze_video_fps.py --sample-size 5
+```
 
 ### Data Files Explained
 

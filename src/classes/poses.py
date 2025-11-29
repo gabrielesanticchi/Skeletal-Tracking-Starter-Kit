@@ -351,6 +351,32 @@ class PosesData:
                 ax.text(root_pos[0], root_pos[1], root_pos[2] + 0.2,
                        f'S{subj_idx}', fontsize=10, color=color)
         
+        # Add Z=0 ground plane with light green opacity
+        all_joints = joints.reshape(-1, 3)
+        valid_joints = all_joints[~(np.isnan(all_joints).any(axis=1) | np.isinf(all_joints).any(axis=1))]
+        
+        if len(valid_joints) > 0:
+            # Calculate X-Y range for ground plane
+            x_min, x_max = valid_joints[:, 0].min(), valid_joints[:, 0].max()
+            y_min, y_max = valid_joints[:, 1].min(), valid_joints[:, 1].max()
+            
+            # Add margin for ground plane
+            x_margin = (x_max - x_min) * 0.2
+            y_margin = (y_max - y_min) * 0.2
+            x_min -= x_margin
+            x_max += x_margin
+            y_min -= y_margin
+            y_max += y_margin
+            
+            # Create ground plane mesh at Z=0
+            xx, yy = np.meshgrid(np.linspace(x_min, x_max, 10),
+                               np.linspace(y_min, y_max, 10))
+            zz = np.zeros_like(xx)
+            
+            # Draw ground plane
+            ax.plot_surface(xx, yy, zz, alpha=0.1, color='lightgreen',
+                          linewidth=0, antialiased=True)
+        
         # Set labels and title
         ax.set_xlabel('X (meters)')
         ax.set_ylabel('Y (meters)')
@@ -360,32 +386,30 @@ class PosesData:
         # Set view angle
         ax.view_init(elev=elev, azim=azim)
         
-        # Make axes equal - handle NaN/Inf values
-        all_joints = joints.reshape(-1, 3)
-        
-        # Filter out NaN/Inf values for axis calculation
-        valid_joints = all_joints[~(np.isnan(all_joints).any(axis=1) | np.isinf(all_joints).any(axis=1))]
-        
+        # Set axis limits with proper Z-axis scaling
         if len(valid_joints) == 0:
             # If no valid joints, use default range
             max_range = 1.0
-            mid_x, mid_y, mid_z = 0.0, 0.0, 0.0
+            mid_x, mid_y = 0.0, 0.0
         else:
-            max_range = np.array([valid_joints[:, 0].max() - valid_joints[:, 0].min(),
-                                 valid_joints[:, 1].max() - valid_joints[:, 1].min(),
-                                 valid_joints[:, 2].max() - valid_joints[:, 2].min()]).max() / 2.0
+            # Calculate X-Y range
+            xy_range = np.array([valid_joints[:, 0].max() - valid_joints[:, 0].min(),
+                               valid_joints[:, 1].max() - valid_joints[:, 1].min()]).max() / 2.0
             
             # Ensure max_range is not zero or NaN
-            if max_range == 0 or np.isnan(max_range) or np.isinf(max_range):
-                max_range = 1.0
+            if xy_range == 0 or np.isnan(xy_range) or np.isinf(xy_range):
+                xy_range = 1.0
             
             mid_x = (valid_joints[:, 0].max() + valid_joints[:, 0].min()) * 0.5
             mid_y = (valid_joints[:, 1].max() + valid_joints[:, 1].min()) * 0.5
-            mid_z = (valid_joints[:, 2].max() + valid_joints[:, 2].min()) * 0.5
+            max_range = xy_range
         
+        # Set X-Y limits based on data
         ax.set_xlim(mid_x - max_range, mid_x + max_range)
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
-        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        
+        # Set Z-axis to fixed range: -1 to +3 meters (feet to head height)
+        ax.set_zlim(-1.0, 3.0)
         
         plt.tight_layout()
         return fig
@@ -466,23 +490,39 @@ class PosesData:
         if len(valid_joints) == 0:
             # If no valid joints, use default range
             max_range = 1.0
-            mid_x, mid_y, mid_z = 0.0, 0.0, 0.0
+            mid_x, mid_y = 0.0, 0.0
         else:
-            max_range = np.array([valid_joints[:, 0].max() - valid_joints[:, 0].min(),
-                                 valid_joints[:, 1].max() - valid_joints[:, 1].min(),
-                                 valid_joints[:, 2].max() - valid_joints[:, 2].min()]).max() / 2.0
+            # Calculate X-Y range only
+            xy_range = np.array([valid_joints[:, 0].max() - valid_joints[:, 0].min(),
+                               valid_joints[:, 1].max() - valid_joints[:, 1].min()]).max() / 2.0
             
             # Ensure max_range is not zero or NaN
-            if max_range == 0 or np.isnan(max_range) or np.isinf(max_range):
-                max_range = 1.0
+            if xy_range == 0 or np.isnan(xy_range) or np.isinf(xy_range):
+                xy_range = 1.0
             
             mid_x = (valid_joints[:, 0].max() + valid_joints[:, 0].min()) * 0.5
             mid_y = (valid_joints[:, 1].max() + valid_joints[:, 1].min()) * 0.5
-            mid_z = (valid_joints[:, 2].max() + valid_joints[:, 2].min()) * 0.5
+            max_range = xy_range
+            
+            # Add Z=0 ground plane for animation
+            x_min, x_max = mid_x - max_range, mid_x + max_range
+            y_min, y_max = mid_y - max_range, mid_y + max_range
+            
+            # Create ground plane mesh at Z=0
+            xx, yy = np.meshgrid(np.linspace(x_min, x_max, 10),
+                               np.linspace(y_min, y_max, 10))
+            zz = np.zeros_like(xx)
+            
+            # Draw ground plane
+            ax.plot_surface(xx, yy, zz, alpha=0.1, color='lightgreen',
+                          linewidth=0, antialiased=True)
         
+        # Set X-Y limits based on data
         ax.set_xlim(mid_x - max_range, mid_x + max_range)
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
-        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        
+        # Set Z-axis to fixed range: -1 to +3 meters (feet to head height)
+        ax.set_zlim(-1.0, 3.0)
         
         # Set labels and view
         ax.set_xlabel('X (meters)')
@@ -717,10 +757,10 @@ class PosesData:
 
     def get_pitch_coordinates(self, frame_idx: int, subject_idx: Optional[int] = None) -> np.ndarray:
         """
-        Get pitch coordinates (X, Y) for tracking purposes.
+        Get pitch coordinates (X, Y) for tracking purposes, centered on (0,0).
         
         This extracts the X and Y coordinates from the translation vector,
-        which represent the position on the football pitch.
+        applies coordinate transformation to center the pitch at (0,0).
         
         Args:
             frame_idx: Frame index
@@ -737,6 +777,12 @@ class PosesData:
             coords = self.transl[:, frame_idx, :2]  # Only X and Y
             # Replace NaN/Inf with zeros
             coords = np.where(np.isnan(coords) | np.isinf(coords), 0.0, coords)
+            
+            # Apply coordinate transformation to center pitch at (0,0)
+            if hasattr(self, '_pitch_offset_x') and hasattr(self, '_pitch_offset_y'):
+                coords[:, 0] -= self._pitch_offset_x
+                coords[:, 1] -= self._pitch_offset_y
+            
             return coords
         else:
             if subject_idx < 0 or subject_idx >= self.num_subjects:
@@ -745,6 +791,12 @@ class PosesData:
             coords = self.transl[subject_idx, frame_idx, :2]  # Only X and Y
             # Replace NaN/Inf with zeros
             coords = np.where(np.isnan(coords) | np.isinf(coords), 0.0, coords)
+            
+            # Apply coordinate transformation to center pitch at (0,0)
+            if hasattr(self, '_pitch_offset_x') and hasattr(self, '_pitch_offset_y'):
+                coords[0] -= self._pitch_offset_x
+                coords[1] -= self._pitch_offset_y
+            
             return coords
 
     def visualize_pitch_tracking(self, start_frame: int = 0, end_frame: Optional[int] = None,
@@ -819,7 +871,7 @@ class PosesData:
         return fig
 
     def _draw_football_pitch(self, ax):
-        """Draw a football pitch outline on the given axes."""
+        """Draw a football pitch outline centered on (0,0)."""
         # Analyze actual data range to understand coordinate system
         all_coords = []
         sample_frames = range(0, min(self.num_frames, 500), 50)  # Sample frames
@@ -836,6 +888,10 @@ class PosesData:
             data_y_min, data_y_max = all_coords[:, 1].min(), all_coords[:, 1].max()
             data_center_x = (data_x_min + data_x_max) / 2
             data_center_y = (data_y_min + data_y_max) / 2
+            
+            print(f"📊 Pitch coordinate analysis:")
+            print(f"   Data range: X=[{data_x_min:.1f}, {data_x_max:.1f}], Y=[{data_y_min:.1f}, {data_y_max:.1f}]")
+            print(f"   Data center: ({data_center_x:.1f}, {data_center_y:.1f})")
         else:
             # Fallback if no valid data
             data_center_x, data_center_y = 0, 0
@@ -860,23 +916,29 @@ class PosesData:
             half_length = pitch_width / 2
             half_width = pitch_length / 2
         
-        # Draw pitch outline
+        # Center the pitch on (0,0) instead of data center
+        pitch_center_x, pitch_center_y = 0.0, 0.0
+        
+        # Calculate offset to transform data coordinates to pitch-centered coordinates
+        self._pitch_offset_x = data_center_x - pitch_center_x
+        self._pitch_offset_y = data_center_y - pitch_center_y
+        
+        print(f"   Pitch offset: ({self._pitch_offset_x:.1f}, {self._pitch_offset_y:.1f})")
+        print(f"   Pitch will be centered at (0, 0)")
+        
+        # Draw pitch outline centered on (0,0)
         pitch_x = [-half_length, half_length, half_length, -half_length, -half_length]
         pitch_y = [-half_width, -half_width, half_width, half_width, -half_width]
-        
-        # Offset to match data center
-        pitch_x = [x + data_center_x for x in pitch_x]
-        pitch_y = [y + data_center_y for y in pitch_y]
         
         ax.plot(pitch_x, pitch_y, 'k-', linewidth=2, alpha=0.8, label='Pitch Outline')
         
         # Draw center line
-        center_line_x = [data_center_x, data_center_x]
-        center_line_y = [data_center_y - half_width, data_center_y + half_width]
+        center_line_x = [0, 0]
+        center_line_y = [-half_width, half_width]
         ax.plot(center_line_x, center_line_y, 'k-', linewidth=1, alpha=0.6)
         
         # Draw center circle
-        center_circle = plt.Circle((data_center_x, data_center_y), 9.15,
+        center_circle = plt.Circle((0, 0), 9.15,
                                  fill=False, color='black', linewidth=1, alpha=0.6)
         ax.add_patch(center_circle)
         
@@ -885,27 +947,27 @@ class PosesData:
         penalty_width = 40.3
         
         # Left penalty area
-        left_penalty_x = [data_center_x - half_length, data_center_x - half_length + penalty_length,
-                         data_center_x - half_length + penalty_length, data_center_x - half_length,
-                         data_center_x - half_length]
-        left_penalty_y = [data_center_y - penalty_width/2, data_center_y - penalty_width/2,
-                         data_center_y + penalty_width/2, data_center_y + penalty_width/2,
-                         data_center_y - penalty_width/2]
+        left_penalty_x = [-half_length, -half_length + penalty_length,
+                         -half_length + penalty_length, -half_length,
+                         -half_length]
+        left_penalty_y = [-penalty_width/2, -penalty_width/2,
+                         penalty_width/2, penalty_width/2,
+                         -penalty_width/2]
         ax.plot(left_penalty_x, left_penalty_y, 'k-', linewidth=1, alpha=0.6)
         
         # Right penalty area
-        right_penalty_x = [data_center_x + half_length, data_center_x + half_length - penalty_length,
-                          data_center_x + half_length - penalty_length, data_center_x + half_length,
-                          data_center_x + half_length]
-        right_penalty_y = [data_center_y - penalty_width/2, data_center_y - penalty_width/2,
-                           data_center_y + penalty_width/2, data_center_y + penalty_width/2,
-                           data_center_y - penalty_width/2]
+        right_penalty_x = [half_length, half_length - penalty_length,
+                          half_length - penalty_length, half_length,
+                          half_length]
+        right_penalty_y = [-penalty_width/2, -penalty_width/2,
+                           penalty_width/2, penalty_width/2,
+                           -penalty_width/2]
         ax.plot(right_penalty_x, right_penalty_y, 'k-', linewidth=1, alpha=0.6)
         
-        # Set axis limits with some margin
+        # Set axis limits with some margin, centered on (0,0)
         margin = 10
-        ax.set_xlim(data_center_x - half_length - margin, data_center_x + half_length + margin)
-        ax.set_ylim(data_center_y - half_width - margin, data_center_y + half_width + margin)
+        ax.set_xlim(-half_length - margin, half_length + margin)
+        ax.set_ylim(-half_width - margin, half_width + margin)
 
     def __repr__(self) -> str:
         """String representation."""
