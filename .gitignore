@@ -6,6 +6,8 @@
 # Images
 *.png
 *.jpg
+*.jpeg
+*.gif
 
 # Archives and documents
 *.7z

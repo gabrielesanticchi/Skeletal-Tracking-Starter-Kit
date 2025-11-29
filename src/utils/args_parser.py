@@ -74,15 +74,15 @@ class ArgsParser:
         parser.add_argument(
             '--elev',
             type=int,
-            default=0,
-            help='Elevation angle for 3D plot (default: 0)'
+            default=45,
+            help='Elevation angle for 3D plot (default: 45 for full pose visibility)'
         )
 
         parser.add_argument(
             '--azim',
             type=int,
-            default=-90,
-            help='Azimuth angle for 3D plot (default: -90)'
+            default=45,
+            help='Azimuth angle for 3D plot (default: 45 for full pose visibility)'
         )
 
         parser.add_argument(
