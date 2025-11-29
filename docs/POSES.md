@@ -117,52 +117,55 @@ The SMPL model uses 24 joints in a hierarchical structure:
 To compute 3D joint positions from SMPL parameters:
 
 1. **Apply global orientation** to root joint
-2. **Apply body pose rotations** using Rodrigues formula
+2. **Apply body pose rotations** using Rodrigues formula (axis-angle to rotation matrix)
 3. **Compute forward kinematics** through joint hierarchy
 4. **Add translation** to get world coordinates
 
-### Coordinate Centering
+The forward kinematics is implemented in `src/visualization/poses_viz.py` with the `compute_smpl_joints()` function, which properly propagates rotations through the SMPL joint hierarchy for realistic pose animations.
 
-The visualization system applies coordinate transformation to center the pitch at (0,0) using the **data mean center** approach.
+### Coordinate System Conversions
 
-**Method: Data Mean Center**
+#### Center-Origin Coordinate System (Default)
 
-This method is more robust than using a specific player reference (e.g., S8), as player positions vary significantly between sequences. The data mean approach:
+The raw `transl` data uses a **center-origin coordinate system** where (0,0,0) is at the center of the football pitch:
 
-1. **Samples positions** across the sequence (up to 200 frames, evenly distributed)
-2. **Calculates the mean** of all valid player positions
-3. **Applies the offset** to center coordinates at (0, 0)
+- **Origin**: Center of the pitch, ground level
+- **Range**:
+  - X: approximately -52.5 to +52.5 meters (pitch length: 105m)
+  - Y: approximately -34.0 to +34.0 meters (pitch width: 68m)
+  - Z: 0.0 to +2.0 meters (ground to head height)
+
+This is the **native coordinate system** of the data and no transformation is needed to use it.
+
+#### Bottom-Left Corner Origin (For Plotting)
+
+For visualization purposes, you may want coordinates with origin at the bottom-left corner of the pitch, resulting in all-positive values. Use the `convert_coords_from_center_to_bl_corner()` method:
 
 ```python
-# Calculate data mean center
-all_coords = []
-sample_frames = range(0, min(num_frames, 200), max(1, num_frames // 20))
+# Get pitch coordinates in center-origin system
+coords_center = poses.get_pitch_coordinates(frame_idx=100)
 
-for frame_idx in sample_frames:
-    for subj_idx in range(num_subjects):
-        coord = transl[subj_idx, frame_idx, :2]  # X, Y only
-        if not (np.isnan(coord).any() or np.isinf(coord).any()):
-            all_coords.append(coord)
+# Convert to bottom-left corner origin
+coords_bl = poses.convert_coords_from_center_to_bl_corner(coords_center)
 
-# Calculate offsets
-offset_x = np.mean(all_coords[:, 0])
-offset_y = np.mean(all_coords[:, 1])
-
-# Apply transformation
-pitch_coords_x = raw_coords_x - offset_x
-pitch_coords_y = raw_coords_y - offset_y
+# Now coords_bl has:
+# - X range: 0 to 105 meters
+# - Y range: 0 to 68 meters
 ```
 
-**Why Data Mean Center?**
+**Transformation Formula:**
+```
+X_bl = X_center + 52.5  (half pitch length)
+Y_bl = Y_center + 34.0  (half pitch width)
+Z_bl = Z_center         (unchanged)
+```
 
-- **Universal**: Works consistently across all sequences
-- **Robust**: Not dependent on specific player positions
-- **Representative**: Samples across entire sequence for accuracy
-- **Validated**: Analysis shows average 7.46m from origin vs 13.25m for player-based references
+**Important Notes:**
 
-**Implementation Note:**
-
-The `PosesData` class caches the calculated offset in `_pitch_offset_x` and `_pitch_offset_y` for efficiency. The offset is computed once on first use and reused for all subsequent coordinate transformations.
+- The visualization module (`src/visualization/poses_viz.py`) works with the **center-origin system** directly
+- Pitch outline is drawn centered at (0,0) matching the data's native coordinate system
+- No offset calculations or caching are needed - the data is already correctly referenced to the pitch center
+- Use `convert_coords_from_center_to_bl_corner()` only when you specifically need bottom-left origin coordinates
 
 ## Usage Examples
 
@@ -196,8 +199,11 @@ trajectory = poses.get_subject_trajectory(subject_idx=0)
 # Get 3D joint positions using forward kinematics
 joints_3d = poses.get_smpl_joints(frame_idx=100)  # (num_subjects, 24, 3)
 
-# Get pitch coordinates (X, Y only)
+# Get pitch coordinates (X, Y only) in center-origin system
 pitch_coords = poses.get_pitch_coordinates(frame_idx=100)  # (num_subjects, 2)
+
+# Convert to bottom-left corner origin if needed
+pitch_coords_bl = poses.convert_coords_from_center_to_bl_corner(pitch_coords)
 ```
 
 ## Data Quality Notes
@@ -224,22 +230,32 @@ valid_subjects = np.where(valid_mask[:, frame_idx])[0]
 
 ## Visualization
 
+**Note:** Visualization functionality is implemented in the separate `src/visualization` module following OOP principles (separation of data manipulation and visualization). The `PosesData` class provides thin wrapper methods that delegate to the visualization module.
+
 ### 3D Pose Visualization
 ```python
 # Static visualization
 fig = poses.visualize_3d_poses(frame_idx=100, elev=45, azim=45)
 
-# Animated visualization
+# Animated visualization with improved joint movements
 fig = poses.animate_3d_poses(start_frame=0, end_frame=100, fps=50)
+
+# Direct use of visualization module
+from src.visualization import poses_viz
+fig = poses_viz.visualize_3d_poses(poses, frame_idx=100)
 ```
 
 ### Pitch Tracking
 ```python
-# Static pitch tracking
+# Static pitch tracking (uses center-origin coordinates)
 fig = poses.visualize_pitch_tracking(start_frame=0, end_frame=100)
 
-# Animated pitch tracking
+# Animated pitch tracking (uses center-origin coordinates)
 fig = poses.animate_pitch_tracking(start_frame=0, end_frame=100, fps=50)
+
+# Direct use of visualization module
+from src.visualization import poses_viz
+fig = poses_viz.animate_pitch_tracking(poses, start_frame=0, end_frame=100)
 ```
 
 ## Technical Specifications
@@ -263,5 +279,27 @@ fig = poses.animate_pitch_tracking(start_frame=0, end_frame=100, fps=50)
 
 - [CAMERAS.md](CAMERAS.md) - Camera calibration data structure
 - [src/classes/README.md](../src/classes/README.md) - Object-oriented interface
+- [src/visualization/](../src/visualization/) - Visualization module for poses data
 - [scripts/README.md](../scripts/README.md) - Visualization scripts
 - [README.md](../README.md) - Main project documentation
+
+## Architecture Notes
+
+### Separation of Concerns
+
+The codebase follows OOP principles by separating data manipulation from visualization:
+
+- **`src/classes/poses.py`**: Data loading, access, and manipulation
+  - SMPL parameter storage and access
+  - Coordinate system conversions
+  - Trajectory extraction
+  - Thin wrapper methods that delegate to visualization module
+
+- **`src/visualization/poses_viz.py`**: Visualization and animation
+  - Forward kinematics implementation
+  - 3D pose visualization
+  - Pitch tracking visualization
+  - Animation generation
+  - Pitch outline drawing
+
+This separation makes the code more maintainable, testable, and follows the single responsibility principle.

@@ -48,6 +48,7 @@ import cv2
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
 
 from classes import PosesData
+from visualization import poses_viz
 from utils import ArgsParser
 
 
@@ -118,6 +119,12 @@ def main():
         action='store_true',
         default=False,
         help='Show subject labels (default: False)'
+    )
+    parser.add_argument(
+        '--zoom',
+        type=int,
+        default=100,
+        help='Zoom level for 3D animation (100=normal, 200=2x zoom, 50=wide) (default: 100)'
     )
     
     args = parser.parse_args()
@@ -195,9 +202,13 @@ def main():
         if args.num_subjects is not None:
             print(f"📌 Limiting to {args.num_subjects} subjects")
 
-        # Create animated 3D visualization
+        if args.zoom != 100:
+            print(f"📌 Zoom level: {args.zoom}% ({args.zoom/100:.1f}x)")
+
+        # Create animated 3D visualization using visualization module
         print(f"\nGenerating 3D animation...")
-        fig = poses.animate_3d_poses(
+        fig = poses_viz.animate_3d_poses(
+            poses_data=poses,
             start_frame=start_frame,
             end_frame=end_frame,
             frame_step=args.frame_step,
@@ -206,7 +217,8 @@ def main():
             azim=args.azim,
             num_subjects=args.num_subjects,
             fps=sync_fps,
-            duration=args.duration
+            duration=args.duration,
+            zoom=args.zoom
         )
 
         # Save or display - default to MP4 output

@@ -53,6 +53,7 @@ import cv2
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
 
 from classes import PosesData
+from visualization import poses_viz
 from utils import ArgsParser
 
 
@@ -274,7 +275,8 @@ def main():
                 
                 print(f"📌 Trail length: {args.trail_length} positions")
                 
-                fig = poses.animate_pitch_tracking(
+                fig = poses_viz.animate_pitch_tracking(
+                    poses_data=poses,
                     start_frame=start_frame,
                     end_frame=end_frame,
                     frame_step=args.frame_step,
@@ -288,7 +290,8 @@ def main():
             else:
                 # Generate static pitch tracking visualization
                 print(f"\nGenerating static pitch tracking visualization...")
-                fig = poses.visualize_pitch_tracking(
+                fig = poses_viz.visualize_pitch_tracking(
+                    poses_data=poses,
                     start_frame=start_frame,
                     end_frame=end_frame,
                     frame_step=args.frame_step,
@@ -309,7 +312,8 @@ def main():
 
             # Generate 3D visualization
             print(f"\nGenerating 3D poses visualization...")
-            fig = poses.visualize_3d_poses(
+            fig = poses_viz.visualize_3d_poses(
+                poses_data=poses,
                 frame_idx=frame_idx,
                 figsize=tuple(args.figsize),
                 elev=args.elev,
